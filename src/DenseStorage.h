@@ -22,5 +22,6 @@ namespace DDA {
 
 		void swap(DenseStorage& other) { std::swap(m_storage, other.m_storage); std::swap(rows, other.rows); std::swap(cols, other.cols); }
 		T* data() { return m_storage.array; }
+		T& operator[](std::size_t idx) { return *(data() + idx); }
 	};
 }

@@ -1,20 +1,9 @@
 #pragma once
 #include<iostream>
+#include<cstring>
 #include "forwardDecleration.h"
 
 namespace DDA {
-	namespace internal {
-		template<class T> struct traits;
-		template<class Scalar, int Rows, int Cols>
-		struct traits<Matrix<Scalar, Rows, Cols>> {
-			/*enum {
-				size = (Rows == Dynamic || Cols == Dynamic) ? 0 : Rows * Cols,
-				MatrixKind = (Rows == Dynamic || Cols == Dynamic)
-			};*/
-			static constexpr int size = Rows * Cols;
-			using scalar = Scalar;
-		};
-	}
 
 	template<class Derived>
 	class MatrixBase {
@@ -22,22 +11,38 @@ namespace DDA {
 		using traits = internal::traits<Derived>;
 
 		MatrixBase(){}
-		//Ç¶Ì×ÀàÐÍÖ¸£ºÐèÒªÄ£°å²ÎÊý½øÐÐ½øÒ»²½ÍÆµ¼µÄÀàÐÍ£¬Ç°ÐèÖ¸¶¨typename£¬Èô²»Ö¸¶¨£¬±àÒëÆ÷½«ÀàÐÍµ±×÷±äÁ¿¿´´ý
+		//Ç¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ÒªÄ£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð½ï¿½Ò»ï¿½ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½Ç°ï¿½ï¿½Ö¸ï¿½ï¿½typenameï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Íµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		MatrixBase(typename traits::scalar *_array){
-			for (int i{}; i < traits::size; ++i)
-				*(derived().m_data.data() + i) = _array[i];
+			memcpy(derived().m_data.data(), _array, traits::size*sizeof(*_array));
 		}
 		MatrixBase(std::initializer_list<typename traits::scalar> _l) {
 			for (auto&& i = _l.begin(); i < _l.end(); ++i)
 				*(derived().m_data.data() + (i - _l.begin())) = *i;
 		}
-		Derived& derived() { return *static_cast<Derived*>(this); }
+		inline Derived& derived() { return *static_cast<Derived*>(this); }
+
+		typename traits::scalar& operator[](std::size_t idx) {
+			return derived().coffeRef(idx);
+		}
+
+		/*MatrixBase& operator=(MatrixBase& other) {
+			for (int i{}; i < traits::size; ++i)
+				derived().coffeRef(i) = other.derived().coffeRef(i);
+			return *this;
+		}*/
+
+		template<class otherDerived>
+		Derived& operator=(const otherDerived& other) {
+			for (int i{}; i < traits::size; ++i)
+				derived().coffeRef(i) = std::remove_const_t<otherDerived>(other).coffeRef(i);
+			return derived();
+		}
+
 
 		void printMatrix() {
 			using std::cout, std::endl;
-			auto ptr = derived().m_data.data();
-			for (int i{}; i < internal::traits<Derived>::size; i++) {
-				cout << ptr[i] << endl;
+			for (int i{}; i < traits::size; i++) {
+				cout << derived().coffeRef(i) << endl;
 			}
 		}
 	};
