@@ -8,7 +8,7 @@ int main() {
 	DDA::Matrix<float, 1, 5> a(mat);
 	DDA::Matrix<float, 1, 5> b(a);
 	DDA::Matrix<float, 1, 5> c(mat);
-	auto s = a + b*c;
+	auto s = a*5;
 	c = s;
 	c.coffeRef(1) = 10;
 	//auto s = (a + (b+c));

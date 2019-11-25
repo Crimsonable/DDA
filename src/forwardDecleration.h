@@ -5,6 +5,7 @@ namespace DDA {
 	template<class op, class lhs, class rhs> class MatrixXpr;
 	template<class Scalar, class lhs, class rhs> class CwiseOpsum;
 	template<class Scalar, class lhs, class rhs> class CwiseOpproduct;
+    template<class Scalar, class other> class CwiseOpscalar;
 	int Dynamic = -1;
 
 	namespace internal {
