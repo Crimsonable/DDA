@@ -6,6 +6,7 @@
             "command": "g++",
             "args": [
                 "-std=c++17",
+                "-msse4",
                 "-g",
                 "${file}",
                 "-o",

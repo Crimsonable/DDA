@@ -6,41 +6,47 @@
 namespace DDA {
 
 	namespace internal {
-		template<class Scalar, int Rows, int Cols>
+		template<typename Scalar, int Rows, int Cols>
 		struct traits<Matrix<Scalar, Rows, Cols>> {
-			/*enum {
-				size = (Rows == Dynamic || Cols == Dynamic) ? 0 : Rows * Cols,
-			};*/
 			static constexpr int size = Rows * Cols;
 			using scalar = Scalar;
+			static constexpr bool isXpr = false;
 		}; 
 	}
 	
-
-	template<class Scalar, int Rows, int Cols>
-	class Matrix : public MatrixBase<Matrix<Scalar, Rows, Cols>> {
+	template<typename Scalar, int Rows, int Cols>
+	class Matrix : public MatrixBase<Matrix<Scalar, Rows, Cols>>, public DenseStorage<Scalar, internal::traits<Matrix<Scalar, Rows, Cols>>::size , Rows, Cols>{
 	public:
 		using scalar = Scalar;
-		typedef MatrixBase<Matrix<Scalar, Rows, Cols>> base;
-		static constexpr int SizeAtCompileTime = Rows * Cols;
-		DenseStorage<scalar, SizeAtCompileTime, Rows, Cols> m_data;
+		typedef MatrixBase<Matrix<Scalar, Rows, Cols>> Matbase;
+		typedef DenseStorage<Scalar, internal::traits<Matrix<Scalar, Rows, Cols>>::size, Rows, Cols> Storagebase;
+		using traits = internal::traits<Matrix<Scalar, Rows, Cols>>;
 	public:
 		Matrix(){}
-		Matrix(scalar* _array):base(_array){}
-		Matrix(std::initializer_list<scalar> _l):base(_l){}
-		explicit Matrix(const Matrix& other):m_data(other.m_data){}
-		Matrix(Matrix&& other):m_data(std::move(other.m_data)){}
+		Matrix(scalar* _array):Storagebase(_array){}
+		Matrix(std::initializer_list<scalar> _l):Storagebase(_l){}
+		explicit Matrix(const Matrix& other):Storagebase(other.dataptr()){}
+		Matrix(Matrix&& other):Storagebase(other.dataptr()){}
 
-		Matrix& operator=(Matrix& other) {
-			return base::operator=(other).derived();
+		void operator=(Matrix& other) {
+			static_cast<Matbase*>(this)->operator=(other);
 		}
 
-		template<class otherDerived>
-		Matrix& operator=(const otherDerived& other) {
-			return base::operator=(other).derived();
+		template<typename otherDerived>
+		void operator=(const otherDerived& other) {
+			static_cast<Matbase*>(this)->operator=(other);
 		}
+
+		const scalar& coffe(std::size_t idx) const {
+			return *(this->m_storage.array + idx);
+		}
+
 		scalar& coffeRef(std::size_t idx) {
-			return *(m_data.data() + idx);
+			return *(this->m_storage.array + idx);
+		}
+
+		scalar& coffeRef(std::size_t r, std::size_t c) {
+			return coffeRef(r + c * this->cols);
 		}
 	};
 }

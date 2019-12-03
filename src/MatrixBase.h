@@ -1,48 +1,60 @@
 #pragma once
 #include<iostream>
-#include<cstring>
+#include <emmintrin.h>
 #include "forwardDecleration.h"
 
 namespace DDA {
 
-	template<class Derived>
+	template<typename Derived>
 	class MatrixBase {
 	public:
 		using traits = internal::traits<Derived>;
 
 		MatrixBase(){}
-		//Ç¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ÒªÄ£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð½ï¿½Ò»ï¿½ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½Ç°ï¿½ï¿½Ö¸ï¿½ï¿½typenameï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Íµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-		MatrixBase(typename traits::scalar *_array){
-			memcpy(derived().m_data.data(), _array, traits::size*sizeof(*_array));
-		}
-		MatrixBase(std::initializer_list<typename traits::scalar> _l) {
-			for (auto&& i = _l.begin(); i < _l.end(); ++i)
-				*(derived().m_data.data() + (i - _l.begin())) = *i;
-		}
-		inline Derived& derived() { return *static_cast<Derived*>(this); }
+		//Ç¶Ì×ÀàÐÍÖ¸£ºÐèÒªÄ£°å²ÎÊý½øÐÐ½øÒ»²½ÍÆµ¼µÄÀàÐÍ£¬Ç°ÐèÖ¸¶¨typename£¬Èô²»Ö¸¶¨£¬±àÒëÆ÷½«ÀàÐÍµ±×÷±äÁ¿¿´´ý
+		inline Derived* derived() { return static_cast<Derived*>(this); }
 
 		typename traits::scalar& operator[](std::size_t idx) {
-			return derived().coffeRef(idx);
+			return derived()->coffeRef(idx);
 		}
 
-		/*MatrixBase& operator=(MatrixBase& other) {
-			for (int i{}; i < traits::size; ++i)
-				derived().coffeRef(i) = other.derived().coffeRef(i);
+		MatrixBase& operator=(MatrixBase& other) {
+			memcpy(derived()->dataptr(), other.derived()->dataptr(), traits::size * sizeof(typename traits::scalar));
 			return *this;
-		}*/
-
-		template<class otherDerived>
-		Derived& operator=(const otherDerived& other) {
-			for (int i{}; i < traits::size; ++i)
-				derived().coffeRef(i) = std::remove_const_t<otherDerived>(other).coffeRef(i);
-			return derived();
 		}
 
+#ifdef DDA_SIMD
+		template<typename otherDerived, typename std::enable_if<
+											internal::traits<otherDerived>::isXpr, int>::type = 0>
+		void operator=(const otherDerived& other) {
+			Derived* ptr = derived();
+			int vecmod = VECTORIZATION_SIZE / (8 * sizeof(typename traits::scalar)) - ptr->size % (sizeof(typename traits::scalar));
+			int real_size = ptr->size + vecmod;
+			int endSimd = 8 * real_size * sizeof(typename traits::scalar) / VECTORIZATION_SIZE;
+			int strides = VECTORIZATION_SIZE / (8 * sizeof(typename traits::scalar));
+			for (int i{}; i < endSimd*strides; i+=strides) {
+				__m128 res = other.coffe(i);
+				_mm_store_ps(&ptr->coffeRef(i), res);
+			}
+		}
+
+#else
+
+
+		template<typename otherDerived, typename std::enable_if<
+											internal::traits<otherDerived>::isXpr,int>::type=0>
+		void operator=(const otherDerived& other) {
+			Derived* ptr = derived();
+			for (int i{}; i < ptr->size; ++i)
+				ptr->coffeRef(i) = other.coffe(i);
+		}
+#endif
 
 		void printMatrix() {
 			using std::cout, std::endl;
-			for (int i{}; i < traits::size; i++) {
-				cout << derived().coffeRef(i) << endl;
+			Derived* ptr = derived();
+			for (int i{}; i < ptr->size; i++) {
+				cout << ptr->coffeRef(i) << endl;
 			}
 		}
 	};
