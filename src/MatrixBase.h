@@ -1,6 +1,4 @@
 #pragma once
-#include<iostream>
-#include <emmintrin.h>
 #include "forwardDecleration.h"
 
 namespace DDA {
@@ -14,13 +12,16 @@ namespace DDA {
 		//嵌套类型指：需要模板参数进行进一步推导的类型，前需指定typename，若不指定，编译器将类型当作变量看待
 		inline Derived* derived() { return static_cast<Derived*>(this); }
 
+
 		typename traits::scalar& operator[](std::size_t idx) {
 			return derived()->coffeRef(idx);
 		}
 
-		MatrixBase& operator=(MatrixBase& other) {
-			memcpy(derived()->dataptr(), other.derived()->dataptr(), traits::size * sizeof(typename traits::scalar));
-			return *this;
+		template<typename otherDerived,typename std::enable_if<
+											!internal::traits<otherDerived>::isXpr,int>::type=0>
+		void operator=(const otherDerived& other) {
+			Derived* ptr = derived();
+			ptr->toStorage() = const_cast<otherDerived&>(other).toStorage();
 		}
 
 #ifdef DDA_SIMD

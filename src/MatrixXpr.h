@@ -41,7 +41,7 @@ namespace DDA {
 	};
 
 	template<typename Scalar, typename lhs,typename rhs>
-	class CwiseOpsum: public MatrixBase<CwiseOpsum<Scalar,lhs,rhs>>, public BinaryOp<lhs,rhs>{
+	class CwiseOpsum: public BinaryOp<lhs,rhs>{
 	public:
 		typedef BinaryOp<lhs, rhs> base;
 		static constexpr bool lXpr = internal::traits<lhs>::isXpr;
@@ -72,7 +72,7 @@ namespace DDA {
 	};
 
 	template<typename Scalar,typename lhs,typename rhs>
-	class CwiseOpproduct :public MatrixBase<CwiseOpproduct<Scalar, lhs, rhs>>, public BinaryOp<lhs, rhs> {
+	class CwiseOpproduct : public BinaryOp<lhs, rhs> {
 	public:
 		typedef BinaryOp<lhs, rhs> base;
 		static constexpr bool lXpr = internal::traits<lhs>::isXpr;
@@ -101,7 +101,7 @@ namespace DDA {
 	};
 
 	template<typename Scalar,typename other>
-	class CwiseOpscalar :public MatrixBase<CwiseOpscalar<Scalar, other>>, public BinaryOp<Scalar, other> {
+	class CwiseOpscalar : public BinaryOp<Scalar, other> {
 	private:
 		Scalar s;
 	public:

@@ -12,6 +12,13 @@ namespace DDA {
 			using scalar = Scalar;
 			static constexpr bool isXpr = false;
 		}; 
+
+		template<typename Scalar>
+		struct traits<Matrix<Scalar, -1, -1>> {
+			static constexpr int size = -1;
+			using scalar = Scalar;
+			static constexpr bool isXpr = false;
+		};
 	}
 	
 	template<typename Scalar, int Rows, int Cols>
@@ -24,11 +31,16 @@ namespace DDA {
 	public:
 		Matrix(){}
 		Matrix(scalar* _array):Storagebase(_array){}
+		Matrix(scalar* _array,int _size) :Storagebase(_array,_size) {}
 		Matrix(std::initializer_list<scalar> _l):Storagebase(_l){}
 		explicit Matrix(const Matrix& other):Storagebase(other.dataptr()){}
 		Matrix(Matrix&& other):Storagebase(other.dataptr()){}
 
-		void operator=(Matrix& other) {
+		Storagebase& toStorage() {
+			return *static_cast<Storagebase*>(this);
+		}
+
+		void operator=(const Matrix& other) {
 			static_cast<Matbase*>(this)->operator=(other);
 		}
 
@@ -38,11 +50,11 @@ namespace DDA {
 		}
 
 		const scalar& coffe(std::size_t idx) const {
-			return *(this->m_storage.array + idx);
+			return *(this->cdata() + idx);
 		}
 
 		scalar& coffeRef(std::size_t idx) {
-			return *(this->m_storage.array + idx);
+			return *(this->data() + idx);
 		}
 
 		scalar& coffeRef(std::size_t r, std::size_t c) {
