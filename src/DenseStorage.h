@@ -35,16 +35,16 @@ namespace DDA {
 		}
 		DenseStorage(std::initializer_list<T> _l) {
 			for (auto&& i = _l.begin(); i < _l.end(); ++i)
-                *(m_storage->array + (i - _l.begin())) = *i;
-            }
+				*(m_storage->array + (i - _l.begin())) = *i;
+		}
 		DenseStorage(const DenseStorage& other) {
-            memcpy(m_storage.array, other.cdata(), other.size);
-        }
+			return DenseStorage(other.data());
+		}
 		DenseStorage(const DenseStorage&& other) {
 			m_storage = std::move(other.m_storage);
 		}
 		
-		void resize(int) { std::cout << "trying to resize a fixed matrix" << std::endl; }
+		void resize(int,int) { }
 		void swap(DenseStorage& other) { std::swap(m_storage, other.m_storage); std::swap(rows, other.rows); std::swap(cols, other.cols); }
 		inline T* data() { return m_storage.array; }
 		inline const T* cdata() const { return m_storage.array; }
@@ -65,8 +65,6 @@ namespace DDA {
 		~DenseStorage() { delete(m_storage); }
 		DenseStorage(T* _array, int _size) {
 			if (_size > size) {
-                if(size!=-1)
-                    delete (m_storage);
 				m_storage = new plainType(_size);
 				size = _size;
 			}
@@ -76,8 +74,7 @@ namespace DDA {
 		DenseStorage(std::initializer_list<T> _l) {
 			auto listsize = _l.size();
 			if (_l.size > size) {
-				if(size!=-1)
-                    delete (m_storage);
+				delete(m_storage);
 				m_storage = new plainType(listsize);
 			}
 			size = listsize;
@@ -87,22 +84,22 @@ namespace DDA {
 
 		template<typename otherStorage>
 		void operator=(const otherStorage& other) {
-			if (other.size > size) {
-                if(size!=-1)
-                    delete (m_storage);
-                m_storage = new plainType(other.size);
-				size = other.size;
-			}
+			resize(other.rows, other.cols);
 			memcpy(m_storage->array, other.cdata(), size * sizeof(T));
+			cols = other.cols;
+			rows = other.rows;
 		}
 
-		void resize(int newSize) {
-			if (newSize > size){
-                if(size!=-1)
-				    delete(m_storage);
+		void resize(int newRows,int newCols) {
+			int newSize = newCols * newRows;
+			if (newSize > size) {
+				if (size > 0)
+					delete(m_storage);
 				m_storage = new plainType(newSize);
-				size = newSize;
 			}
+			size = newSize;
+			cols = newCols;
+			rows = newRows;
 		}
 
 		inline T* data() { return m_storage->array; }

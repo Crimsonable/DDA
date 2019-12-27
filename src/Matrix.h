@@ -49,16 +49,42 @@ namespace DDA {
 			static_cast<Matbase*>(this)->operator=(other);
 		}
 
-		const scalar& coffe(std::size_t idx) const {
+		const scalar& coeff(std::size_t idx) const {
 			return *(this->cdata() + idx);
 		}
 
-		scalar& coffeRef(std::size_t idx) {
+		scalar& coeffRef(std::size_t idx) {
 			return *(this->data() + idx);
 		}
 
-		scalar& coffeRef(std::size_t r, std::size_t c) {
-			return coffeRef(r + c * this->cols);
+		scalar& coeffRef(std::size_t r, std::size_t c) {
+			return coeffRef(r + c * this->rows);
+		}
+
+		void setOnes() {
+			auto zeros = new scalar[this->rows];
+			for (int j = 0; j < this->rows; ++j)
+				zeros[j] = 1;
+			auto dataptr = this->data();
+			for (int i = 0; i < this->cols; ++i) {
+				memcpy(dataptr + i * this->rows, zeros, sizeof(scalar)*this->rows);
+			}
+			delete[] zeros;
+		}
+
+		void setZeros() {
+			auto zeros = new scalar[this->rows]{0};
+			auto dataptr = this->data();
+			for (int i = 0; i < this->cols; ++i)
+				memcpy(dataptr + i * this->rows, zeros, sizeof(scalar)*this->rows);
+			delete[] zeros;
+		}
+
+		scalar sum() {
+			scalar res = 0;
+			for (int i = 0; i < this->size; ++i)
+				res += this->coeff(i);
+			return res;
 		}
 	};
 }

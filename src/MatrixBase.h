@@ -14,7 +14,7 @@ namespace DDA {
 
 
 		typename traits::scalar& operator[](std::size_t idx) {
-			return derived()->coffeRef(idx);
+			return derived()->coeffRef(idx);
 		}
 
 		template<typename otherDerived,typename std::enable_if<
@@ -29,14 +29,7 @@ namespace DDA {
 											internal::traits<otherDerived>::isXpr, int>::type = 0>
 		void operator=(const otherDerived& other) {
 			Derived* ptr = derived();
-			int vecmod = VECTORIZATION_SIZE / (8 * sizeof(typename traits::scalar)) - ptr->size % (sizeof(typename traits::scalar));
-			int real_size = ptr->size + vecmod;
-			int endSimd = 8 * real_size * sizeof(typename traits::scalar) / VECTORIZATION_SIZE;
-			int strides = VECTORIZATION_SIZE / (8 * sizeof(typename traits::scalar));
-			for (int i{}; i < endSimd*strides; i+=strides) {
-				__m128 res = other.coffe(i);
-				_mm_store_ps(&ptr->coffeRef(i), res);
-			}
+			const_cast<otherDerived&>(other).toXprBase().run(ptr, other);
 		}
 
 #else
@@ -47,15 +40,29 @@ namespace DDA {
 		void operator=(const otherDerived& other) {
 			Derived* ptr = derived();
 			for (int i{}; i < ptr->size; ++i)
-				ptr->coffeRef(i) = other.coffe(i);
+				ptr->coeffRef(i) = other.coeff(i);
 		}
 #endif
 
 		void printMatrix() {
 			using std::cout, std::endl;
 			Derived* ptr = derived();
-			for (int i{}; i < ptr->size; i++) {
-				cout << ptr->coffeRef(i) << endl;
+			for (int i = 0; i < ptr->rows; ++i) {
+				for (int j = 0; j < ptr->cols; ++j) {
+					std::cout << ptr->coeffRef(i, j) << " ";
+				}
+				std::cout << std::endl;
+			}
+		}
+
+		void printMatrix(int r,int c) {
+			using std::cout, std::endl;
+			Derived* ptr = derived();
+			for (int i = 0; i < r; ++i) {
+				for (int j = 0; j < c; ++j) {
+					std::cout << ptr->coeffRef(i, j) << " ";
+				}
+				std::cout << std::endl;
 			}
 		}
 	};
