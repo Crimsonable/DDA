@@ -4,10 +4,15 @@
 #include <chrono>
 #include "Product.h"
 #include "eigen/Eigen/Dense"
+
+//#define EIGEN_USE_MKL_ALL
+
 using namespace std;
-#define N 2048
-#define N2 2048
+#define M 256
+#define K 256
+#define N 1
 //#define EIGEN_BENCHMARK
+//#define PRINT_TEST
 
 template<typename T>
 bool check1(T& mat) {
@@ -20,7 +25,7 @@ bool check1(T& mat) {
 
 template<typename T1, typename T2>
 void check(T1& ec, T2& c) {
-	for (int i = 0; i < N2*N2; ++i) {
+	for (int i = 0; i < M*N; ++i) {
 		if (abs(ec.coeffRef(i) - c.coeffRef(i)) > 1e-6) {
 			//cout << "false at " << i % N2 << "  " << i / N2 << endl;
 			cout << 0 << endl;
@@ -110,20 +115,18 @@ void test2() {
 void test3() {
 	DDA::Matrix<float, -1, -1> a, b, c;
 	Eigen::Matrix<float, -1, -1> ea, eb, ec;
-	a.resize(N, N2); b.resize(N2, N); c.resize(N, N);
-	ea.resize(N, N2); eb.resize(N2, N); ec.resize(N, N);
-	ea.setOnes(); eb.setOnes(); ec.setZero();
+	a.resize(M, K); b.resize(K, N); c.resize(M, N);
+	ea.resize(M, K); eb.resize(K, N); ec.resize(M, N);
+	ea.setRandom(); eb.setRandom();
 	c.setZeros();a.setOnes(); b.setOnes();
-	for (int i = 0; i < N; ++i) {
-		for (int j = 0; j < N2; ++j) {
-			a.coeffRef(i, j) = j + i;
-			ea.coeffRef(i, j) = j + i;
+	for (int i = 0; i < M; ++i) {
+		for (int j = 0; j < K; ++j) {
+			a.coeffRef(i, j) = ea.coeffRef(i, j);
 		}
 	}
-	for (int i = 0; i < N2; ++i) {
+	for (int i = 0; i < K; ++i) {
 		for (int j = 0; j < N; ++j) {
-			b.coeffRef(i, j) = j + i;
-			eb.coeffRef(i, j) = j + i;
+			b.coeffRef(i, j) = eb.coeffRef(i, j);
 		}
 	}
 	std::cout << "exp" << std::endl;
@@ -132,8 +135,7 @@ void test3() {
 	auto t1 = std::chrono::steady_clock::now();
 	auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
 	std::cout << "cost£º" << time_span.count() << std::endl;
-	std::cout << "Gflops: " << 1e-9*2 * N*N*N / time_span.count() << std::endl;
-	//std::cout << check1(c) << std::endl;
+	std::cout << "Gflops: " << 1e-9*2 * M*N*K / time_span.count() << std::endl;
 	std::cout << "-------------------------" << std::endl;
 	std::cout << "eigen" << std::endl;
 	t0 = std::chrono::steady_clock::now();
@@ -141,47 +143,19 @@ void test3() {
 	t1 = std::chrono::steady_clock::now();
 	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
 	std::cout << "cost£º" << time_span.count() << std::endl;
-	std::cout << "Gflops: " << 1e-9*2 * N*N*N / time_span.count() << std::endl;
-	//check(ec, c);
+	std::cout << "Gflops: " << 1e-9*2 * M*N*K / time_span.count() << std::endl;
 	cout << ec.sum() << endl;
 	cout << c.sum() << endl;
-	//cout << ec << endl;
-	//c.printMatrix();
-}
-
-void test4() {
-	DDA::Matrix<float, -1, -1> a, b, c;
-	Eigen::Matrix<float, -1, -1> ea, eb, ec;
-	ea.resize(N, N2); eb.resize(N2, N2); ec.resize(N, N2); ec.setZero();
-	a.resize(N, N2); b.resize(N2, N2); c.resize(N, N2);c.setZeros();
-	/*a.setOnes(); b.setOnes();
-	ea.setOnes(); eb.setOnes();*/
-	for (int i = 0; i < N; ++i) {
-		for (int j = 0; j < N2; ++j) {
-			a.coeffRef(i, j) = j;
-			ea.coeffRef(i, j) = j;
-		}
-	}
-	for (int i = 0; i < N2; ++i) {
-		for (int j = 0; j < N; ++j) {
-			b.coeffRef(i, j) = j;
-			eb.coeffRef(i, j) = j;
-		}
-	}
-	DDA::Product(&a, &b, &c);
-	ec = ea * eb;
-	auto correct = abs(ec.sum() - c.sum());
-	cout << ec.sum() << endl;
-	cout << c.sum() << endl;
-	check(ec, c);
-	//cout << ec << endl;
-	//c.printMatrix();
+#ifdef PRINT_TEST
+	cout << ec << endl;
+	c.printMatrix();
+#endif // PRINT_TEST
 }
 
 
 int main() {
 #ifndef _DEBUG
-	omp_set_num_threads(6);
+	omp_set_num_threads(1);
 #endif
 	test3();
 	system("pause");

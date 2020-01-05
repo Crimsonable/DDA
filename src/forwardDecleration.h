@@ -1,6 +1,6 @@
 #pragma once
 #include<assert.h>
-#include <nmmintrin.h>
+#include <immintrin.h>
 #include<iostream>
 namespace DDA {
 	template<typename Derived> class MatrixBase;

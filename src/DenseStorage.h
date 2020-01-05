@@ -13,7 +13,8 @@ namespace DDA {
 		struct alignas(16) plain_array<T,-1> {
 			T* array;
 			plain_array(std::size_t size) {
-				size += VECTORIZATION_SIZE / (8 * sizeof(T)) - size % (sizeof(T));
+				//size += VECTORIZATION_SIZE / (8 * sizeof(T)) - size % (sizeof(T));
+				size += 4;
 				array = reinterpret_cast<T*>(aligned_alloc(size * sizeof(T), 16));
 			}
 
