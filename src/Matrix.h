@@ -80,8 +80,8 @@ namespace DDA {
 			delete[] zeros;
 		}
 
-		scalar sum() {
-			scalar res = 0;
+		double sum() {
+			double res = 0;
 			for (int i = 0; i < this->size; ++i)
 				res += this->coeff(i);
 			return res;

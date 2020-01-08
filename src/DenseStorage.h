@@ -6,7 +6,8 @@ namespace DDA {
 	namespace internal {
 		template<typename T, int size>
 		struct alignas(16) plain_array {
-			T array[size+ VECTORIZATION_SIZE / (8 * sizeof(T)) - size % (sizeof(T))];
+			//T array[size+ VECTORIZATION_SIZE / (8 * sizeof(T)) - size % (sizeof(T))];
+			T array[size + 4];
 		};
 
 		template<typename T>

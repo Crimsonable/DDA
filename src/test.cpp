@@ -8,10 +8,11 @@
 //#define EIGEN_USE_MKL_ALL
 
 using namespace std;
-#define M 256
-#define K 256
-#define N 1
-//#define EIGEN_BENCHMARK
+#define M 2048
+#define K 2048
+#define N 2048
+#define EIGEN_BENCHMARK
+using dtype = float;
 //#define PRINT_TEST
 
 template<typename T>
@@ -44,24 +45,17 @@ void check0(T& c) {
 }
 
 void test() {
-	DDA::Matrix<float, -1, -1> a, b, c;
+	DDA::Matrix<dtype, -1, -1> a, b, c;
 	a.resize(N,N); b.resize(N,N); c.resize(N,N);
-	//DDA::Matrix<float, N, N> a, b, c;
 #ifdef EIGEN_BENCHMARK
-	//Eigen::Matrix<float, N, N> ea, eb, ec;
-	Eigen::Matrix<float, -1, -1> ea, eb, ec;
+	Eigen::Matrix<dtype, -1, -1> ea, eb, ec;
 	ea.resize(N, N); eb.resize(N, N); ec.resize(N, N);
+	dtype *da = new dtype[N*N], *db = new dtype[N*N], *dc = new dtype[N*N];
 #endif // EIGEN_BENCHMARK
-	float sa[N*N], sb[N*N], sr[N*N];
-	float *da = new float[N*N];
-	float *db = new float[N*N];
-	float *dc = new float[N*N];
 	for (int i = 0; i < N*N; ++i) {
-		auto f = float(i);
+		auto f = dtype(i);
 		a.coeffRef(i) = f;
 		b.coeffRef(i) = f;
-		sa[i] = f;
-		sb[i] = f;
 		da[i] = f;
 		db[i] = f;
 #ifdef EIGEN_BENCHMARK
@@ -69,21 +63,13 @@ void test() {
 		eb.coeffRef(i) = f;
 #endif // EIGEN_BENCHMARK
 	}
-	std::cout << "堆数组直接相加" << std::endl;
+	std::cout << "动态数组相加" << std::endl;
 	std::cout << "-------------------------" << std::endl;
 	auto t0 = std::chrono::steady_clock::now();
 	for (int i = 0; i < N*N; ++i)
-		sr[i] += sa[i] + sb[i];
+		dc[i] += da[i] + db[i];
 	auto t1 = std::chrono::steady_clock::now();
 	auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
-	std::cout << "用时：" << time_span.count() << std::endl;
-	std::cout << "-------------------------" << std::endl;
-	std::cout << "动态数组" << std::endl;
-	t0 = std::chrono::steady_clock::now();
-	for (int i = 0; i < N*N; ++i)
-		dc[i] += db[i] + da[i];
-	t1 = std::chrono::steady_clock::now();
-	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
 	std::cout << "用时：" << time_span.count() << std::endl;
 	std::cout << "-------------------------" << std::endl;
 	std::cout << "表达式" << std::endl;
@@ -102,19 +88,20 @@ void test() {
 	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
 	std::cout << "用时：" << time_span.count() << std::endl;
 #endif // EIGEN_BENCHMARK
+	cout << a.sum() << endl;
+	cout << ea.sum() << endl;
 }
 
 void test2() {
-	float mat[5] = { 1,2,3,4,5 };
-	DDA::Matrix<float, -1, -1> a;
-	DDA::Matrix<float, 1, 5> b(mat), c(mat);
-	a = b + c * (b + c);
-	a.printMatrix();
+	double mat[5] = { 1,2,3,4,5 };
+	DDA::Matrix<double, 1, 5> a(mat), b(mat), c;
+	c = b + a * (b + a);
+	c.printMatrix();
 }
 
 void test3() {
-	DDA::Matrix<float, -1, -1> a, b, c;
-	Eigen::Matrix<float, -1, -1> ea, eb, ec;
+	DDA::Matrix<dtype, -1, -1> a, b, c;
+	Eigen::Matrix<dtype, -1, -1> ea, eb, ec;
 	a.resize(M, K); b.resize(K, N); c.resize(M, N);
 	ea.resize(M, K); eb.resize(K, N); ec.resize(M, N);
 	ea.setRandom(); eb.setRandom();
@@ -155,9 +142,9 @@ void test3() {
 
 int main() {
 #ifndef _DEBUG
-	omp_set_num_threads(1);
+	omp_set_num_threads(4);
 #endif
-	test3();
+	test();
 	system("pause");
 	return 1;
 }
