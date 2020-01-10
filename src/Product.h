@@ -79,8 +79,9 @@ namespace DDA {
 
 	template<typename T, typename Vtype, typename std::enable_if<
 											std::is_same_v<Vtype, v_128<T>> || std::is_same_v<Vtype, v_256<T>>, int>::type = 0>
-	void AddDot4x4(T *a, T *b, T *c, int block_k, int m, int n, int k) {
-		const constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
+	void AddDot4x4(T *a, T *b, T *c, int block_k, int m, int n, int k, int current_c_col) {
+		constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
+		const int left_cols = n - current_c_col > 4 ? 4 : n - current_c_col;
 		Vtype
 			c_00_c_30_vreg, c_01_c_31_vreg, c_02_c_32_vreg, c_03_c_33_vreg,
 			a_0p_a_3p_vreg,
@@ -107,19 +108,22 @@ namespace DDA {
 			c_03_c_33_vreg.v = a_0p_a_3p_vreg.v * b_p3_vreg.v + c_03_c_33_vreg.v;
 		}
 
+		std::size_t c1 = 1 % left_cols, c2 = 2 % left_cols, c3 = 3 % left_cols;
+
 		for (int i = 0; i < VSIZE; ++i) {
 			*(c + i) += ELEMENT(0, 0, 3, i);
-			*(c + i + m) += ELEMENT(0, 1, 3, i);
-			*(c + i + 2 * m) += ELEMENT(0, 2, 3, i);
-			*(c + i + 3 * m) += ELEMENT(0, 3, 3, i);
+			*(c + i + c1 * m) += ELEMENT(0, 1, 3, i);
+			*(c + i + c2 * m) += ELEMENT(0, 2, 3, i);
+			*(c + i + c3 * m) += ELEMENT(0, 3, 3, i);
 		}
 	}
 
 	template<typename T, typename Vtype, typename std::enable_if<
 							std::is_same_v<Vtype,v_128<T>>||std::is_same_v<Vtype,v_256<T>>,int>::type=0>
-	void AddDot8x4(T *a, T *b, T *c, int block_k, int m, int n, int k) {
+	void AddDot8x4(T *a, T *b, T *c, int block_k, int m, int n, int k, int current_c_col) {
 		int p;
-		const constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
+		const int left_cols = n - current_c_col > 4 ? 4 : n - current_c_col;
+		constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
 		Vtype
 			c_00_c_30_vreg, c_01_c_31_vreg, c_02_c_32_vreg, c_03_c_33_vreg,
 			c_40_c_70_vreg, c_41_c_71_vreg, c_42_c_72_vreg, c_43_c_73_vreg,
@@ -156,21 +160,24 @@ namespace DDA {
 
 		}
 
-			for (int i = 0; i < VSIZE; ++i) {
-				*(c + i) += ELEMENT(0, 0, 3, i);
-				*(c + i + m) += ELEMENT(0, 1, 3, i);
-				*(c + i + 2 * m) += ELEMENT(0, 2, 3, i);
-				*(c + i + 3 * m) += ELEMENT(0, 3, 3, i);
-				*(c + i + VSIZE) += ELEMENT(4, 0, 7, i);
-				*(c + i + VSIZE + m) += ELEMENT(4, 1, 7, i);
-				*(c + i + VSIZE + 2 * m) += ELEMENT(4, 2, 7, i);
-				*(c + i + VSIZE + 3 * m) += ELEMENT(4, 3, 7, i);
-			}
+		std::size_t c1 = 1 % left_cols, c2 = 2 % left_cols, c3 = 3 % left_cols;
+
+		for (int i = 0; i < VSIZE; ++i) {
+			*(c + i) += ELEMENT(0, 0, 3, i);
+			*(c + i + c1 * m) += ELEMENT(0, 1, 3, i);
+			*(c + i + c2 * m) += ELEMENT(0, 2, 3, i);
+			*(c + i + c3 * m) += ELEMENT(0, 3, 3, i);
+			*(c + i + VSIZE) += ELEMENT(4, 0, 7, i);
+			*(c + i + VSIZE + c1 * m) += ELEMENT(4, 1, 7, i);
+			*(c + i + VSIZE + c2 * m) += ELEMENT(4, 2, 7, i);
+			*(c + i + VSIZE + c3 * m) += ELEMENT(4, 3, 7, i);
+		}
 	}
 
 	template<typename T>
 	void PackMatrixA(T* A, int blockrows, int m, int block_k, T* packA, int pad_rows) {
 		int i = 0, j = 0;
+//#pragma omp parallel for
 		for (j = 0; j < block_k; ++j) {
 			T *ptr = A + j * m;
 			for (i = 0; i < blockrows - pad_rows; ++i) {
@@ -204,18 +211,25 @@ namespace DDA {
 
 	template<typename T>
 	inline void PackMatrixA_final(T *A, T *packedA, int InnerKernel_rows, int m, int rk, int rm, int pad_rows, int after_pad) {
-		int EndVec = rm - rm % InnerKernel_rows;
-		int i = 0;
-#pragma omp parallel for
-		for (i = 0; i < EndVec; i += InnerKernel_rows) {
-			PackMatrixA(A + i, InnerKernel_rows, m, rk, packedA + rk * i, 0);
-		}
-#pragma omp parallel for
-		for (i = EndVec; i < after_pad; i += basic_stripe) {
-			if (pad_rows && rm-i<basic_stripe)
-				PackMatrixA(A + i, basic_stripe, m, rk, packedA + rk * i, pad_rows);
+		int EndVec = after_pad - after_pad % InnerKernel_rows;
+		constexpr int half_step = basic_stripe / (sizeof(T) / sizeof(float));
+//#pragma omp parallel for
+		for (int i = 0; i < EndVec; i += InnerKernel_rows) {
+			if (pad_rows && rm - i < InnerKernel_rows)
+				PackMatrixA(A + i, InnerKernel_rows, m, rk, packedA + rk * i, pad_rows);
 			else
-				PackMatrixA(A + i, basic_stripe, m, rk, packedA + rk * i, 0);
+				PackMatrixA(A + i, InnerKernel_rows, m, rk, packedA + rk * i, 0);
+		}
+//#pragma omp parallel for
+		for (int i = EndVec; i < rm; i += half_step) {
+			if (pad_rows && rm - i < half_step)
+				PackMatrixA(A + i, half_step, m, rk, packedA + rk * i, half_step - rm + i);
+			else
+				PackMatrixA(A + i, half_step, m, rk, packedA + rk * i, 0);
+		}
+		int step = InnerKernel_rows;
+		for (int i = 0; i < rm; i += step) {
+			step = _min_(rm - i, InnerKernel_rows);
 		}
 	}
 
@@ -238,13 +252,14 @@ namespace DDA {
 
 		const constexpr int InnerKernel_cols = inner_cols;
 		const constexpr int InnerKernel_rows = 4 * inner_rows / sizeof(T);
+		constexpr int half_step = basic_stripe / (sizeof(T) / sizeof(float));
 
 		//alloc memory for packing
 		std::size_t packedARows = rm % 4 == 0 ? rm : (rm + 4 - rm % 4);
 		std::size_t packedBCols = n % 4 == 0 ? n : (n + 4 - n % 4);
-		static T *packedA = reinterpret_cast<T*>(aligned_alloc(packedARows*rk * sizeof(T), 16));
-		static T *packedB = reinterpret_cast<T*>(aligned_alloc(packedBCols*rk * sizeof(T), 16));
-		int EndVecRows = rm - rm % InnerKernel_rows;
+		static T *packedA = mynew<T>(packedARows*rk, 16);
+		static T *packedB = mynew<T>(packedBCols*rk, 16);
+		int EndVecRows = packedARows - packedARows % InnerKernel_rows;
 
 		//pack InnerKernel A(rm*rk) into packedA
 		PackMatrixA_final(b_A, packedA, InnerKernel_rows, m, rk, rm, packedARows - rm, packedARows);
@@ -254,10 +269,10 @@ namespace DDA {
 #pragma omp parallel for
 		for (int j = 0; j < packedBCols; j += InnerKernel_cols) {
 			for (int i = 0; i < EndVecRows; i += InnerKernel_rows) {
-				AddDot8x4<T, v_256<T>>(packedA + rk * i, packedB + j * rk, C + i + j * m, rk, m, n, k);
+				AddDot8x4<T, v_256<T>>(packedA + rk * i, packedB + j * rk, C + i + j * m, rk, m, n, k, j);
 			}
-			for (int i = EndVecRows; i < rm; i += basic_stripe)
-				AddDot4x4<T, v_128<T>>(packedA + rk * i, packedB + j * rk, C + i + j * m, rk, m, n, k);
+			for (int i = EndVecRows; i < rm; i += half_step)
+				AddDot4x4<T, v_128<T>>(packedA + rk * i, packedB + j * rk, C + i + j * m, rk, m, n, k, j);
 		}
 
 		if (isLast) {

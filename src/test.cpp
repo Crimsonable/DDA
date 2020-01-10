@@ -8,11 +8,11 @@
 //#define EIGEN_USE_MKL_ALL
 
 using namespace std;
-#define M 2048
-#define K 2048
-#define N 2048
+#define M 5130
+#define K 2570
+#define N 1290
 #define EIGEN_BENCHMARK
-using dtype = float;
+using dtype = double;
 //#define PRINT_TEST
 
 template<typename T>
@@ -118,9 +118,12 @@ void test3() {
 	}
 	std::cout << "exp" << std::endl;
 	auto t0 = std::chrono::steady_clock::now();
-	DDA::Product(&a, &b, &c);
 	auto t1 = std::chrono::steady_clock::now();
 	auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+	t0 = std::chrono::steady_clock::now();
+	DDA::Product(&a, &b, &c);
+	t1 = std::chrono::steady_clock::now();
+	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
 	std::cout << "cost£º" << time_span.count() << std::endl;
 	std::cout << "Gflops: " << 1e-9*2 * M*N*K / time_span.count() << std::endl;
 	std::cout << "-------------------------" << std::endl;
@@ -139,12 +142,36 @@ void test3() {
 #endif // PRINT_TEST
 }
 
+void test4() {
+	DDA::Matrix<dtype, -1, -1> a, b, c;
+	a.resize(M, K); b.resize(K, N); c.resize(M, N);
+	c.setZeros(); //a.setOnes(); b.setOnes();
+	for (int i = 0; i < M*K; ++i) {
+		a.coeffRef(i) = i;
+	}
+	for (int i = 0; i < K*N; ++i) {
+		b.coeffRef(i) = i;
+	}
+	std::cout << "exp" << std::endl;
+	auto t0 = std::chrono::steady_clock::now();
+	DDA::Product(&a, &b, &c);
+	auto t1 = std::chrono::steady_clock::now();
+	auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+	std::cout << "cost£º" << time_span.count() << std::endl;
+	std::cout << "Gflops: " << 1e-9 * 2 * M*N*K / time_span.count() << std::endl;
+	std::cout << "-------------------------" << std::endl;
+	cout << c.sum() << endl;
+#ifdef PRINT_TEST
+	c.printMatrix();
+#endif // PRINT_TEST
+}
+
 
 int main() {
 #ifndef _DEBUG
 	omp_set_num_threads(4);
 #endif
-	test();
+	test3();
 	system("pause");
 	return 1;
 }

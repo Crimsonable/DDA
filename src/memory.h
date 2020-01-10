@@ -20,4 +20,11 @@ namespace DDA {
 	void aligned_free(void* ptr) {
 		std::free(*reinterpret_cast<void**>(reinterpret_cast<std::size_t>(ptr) - sizeof(void*)));
 	}
+
+	template<typename T>
+	T* mynew(std::size_t size, std::size_t alignment) {
+		T *ptr = reinterpret_cast<T*>(aligned_alloc(size * sizeof(T), alignment));
+		std::fill_n(ptr, size, T(0));
+		return ptr;
+	}
 }

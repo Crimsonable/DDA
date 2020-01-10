@@ -2,6 +2,7 @@
 #include<assert.h>
 #include <immintrin.h>
 #include<iostream>
+#include<algorithm>
 namespace DDA {
 	template<typename Derived> class MatrixBase;
 	template<typename T, int size, int Rows, int Cols> class DenseStroage;
