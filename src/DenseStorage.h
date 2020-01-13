@@ -40,7 +40,7 @@ namespace DDA {
 				*(m_storage->array + (i - _l.begin())) = *i;
 		}
 		DenseStorage(const DenseStorage& other) {
-			return DenseStorage(other.data());
+			DenseStorage(other.data());
 		}
 		DenseStorage(const DenseStorage&& other) {
 			m_storage = std::move(other.m_storage);

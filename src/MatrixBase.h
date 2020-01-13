@@ -9,7 +9,7 @@ namespace DDA {
 		using traits = internal::traits<Derived>;
 
 		MatrixBase(){}
-		//嵌套类型指：需要模板参数进行进一步推导的类型，前需指定typename，若不指定，编译器将类型当作变量看待
+		//嵌锟斤拷锟斤拷锟斤拷指锟斤拷锟斤拷要模锟斤拷锟斤拷锟斤拷锟斤拷薪锟揭伙拷锟斤拷频锟斤拷锟斤拷锟斤拷停锟角帮拷锟街革拷锟絫ypename锟斤拷锟斤拷锟斤拷指锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟酵碉拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
 		inline Derived* derived() { return static_cast<Derived*>(this); }
 
 
@@ -29,6 +29,9 @@ namespace DDA {
 											internal::traits<otherDerived>::isXpr, int>::type = 0>
 		void operator=(const otherDerived& other) {
 			Derived* ptr = derived();
+            if constexpr(traits::size==-1){
+                ptr->resize(other.rows, other.cols);
+            }
 			const_cast<otherDerived&>(other).toXprBase().run(ptr, other);
 		}
 

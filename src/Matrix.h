@@ -80,7 +80,16 @@ namespace DDA {
 			delete[] zeros;
 		}
 
-		double sum() {
+        void setRandom(){
+            auto dataptr = this->data();
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_real_distribution<scalar> dis(0, 1);
+            for (int i = 0; i < this->size;++i)
+                *(dataptr + i) = dis(gen);
+        }
+
+		double sum() const {
 			double res = 0;
 			for (int i = 0; i < this->size; ++i)
 				res += this->coeff(i);

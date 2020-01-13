@@ -1,0 +1,3 @@
+include/eigen
+build
+!build/*.txt
