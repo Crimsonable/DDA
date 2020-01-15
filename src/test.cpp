@@ -3,6 +3,6 @@ using namespace std;
 
 int main() {
     DDA::Test<double> test;
-    test.TestForMatDotPerforemence(9, 9, 5, 1);
+    test.TestForMatDotPerforemence(517, 259, 135, 4);
     return 1;
 }

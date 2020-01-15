@@ -173,7 +173,6 @@ namespace DDA {
     template <typename T>
     void PackMatrixA(T *A, int blockrows, int m, int block_k, T *packA, int pad_rows) {
         int i = 0, j = 0;
-        //#pragma omp parallel for
         for (j = 0; j < block_k; ++j) {
             T *ptr = A + j * m;
             for (i = 0; i < blockrows - pad_rows; ++i) {
@@ -187,7 +186,6 @@ namespace DDA {
 
     template <typename T>
     inline void PackMatrixB(T *B, int blockcols, int block_k, int k, T *packB) {
-        //#pragma omp parallel for
         for (int j = 0; j < blockcols; ++j) {
             for (int i = 0; i < block_k; ++i) {
                 *(packB + i + j * block_k) = *(B + i + j * k);
@@ -197,7 +195,6 @@ namespace DDA {
 
     template <typename T>
     inline void PackMatrixB_pad(int blockcols, int block_k, T *packB) {
-        //#pragma omp parallel for
         for (int j = 0; j < blockcols; ++j) {
             for (int i = 0; i < block_k; ++i) {
                 *(packB + i + j * block_k) = 0;
@@ -209,42 +206,47 @@ namespace DDA {
     inline void PackMatrixA_final(T *A, T *packedA, int InnerKernel_rows, int m, int rk, int rm, int pad_rows, int after_pad) {
         int EndVec = after_pad - after_pad % InnerKernel_rows;
         constexpr int half_step = basic_step / (sizeof(T) / sizeof(float));
-        //#pragma omp parallel for
-        for (int i = 0; i < EndVec; i += InnerKernel_rows) {
-            if (pad_rows && rm - i < InnerKernel_rows)
-                PackMatrixA(A + i, InnerKernel_rows, m, rk, packedA + rk * i, pad_rows);
-            else
-                PackMatrixA(A + i, InnerKernel_rows, m, rk, packedA + rk * i, 0);
-        }
-        //#pragma omp parallel for
-        for (int i = EndVec; i < rm; i += half_step) {
-            if (pad_rows && rm - i < half_step)
-                PackMatrixA(A + i, half_step, m, rk, packedA + rk * i, half_step - rm + i);
-            else
-                PackMatrixA(A + i, half_step, m, rk, packedA + rk * i, 0);
+#pragma omp parallel
+        {
+#pragma omp for nowait
+            for (int i = 0; i < EndVec; i += InnerKernel_rows) {
+                if (pad_rows && rm - i < InnerKernel_rows)
+                    PackMatrixA(A + i, InnerKernel_rows, m, rk, packedA + rk * i, pad_rows);
+                else
+                    PackMatrixA(A + i, InnerKernel_rows, m, rk, packedA + rk * i, 0);
+            }
+            for (int i = EndVec; i < rm; i += half_step) {
+                if (pad_rows && rm - i < half_step)
+                    PackMatrixA(A + i, half_step, m, rk, packedA + rk * i, half_step - rm + i);
+                else
+                    PackMatrixA(A + i, half_step, m, rk, packedA + rk * i, 0);
+            }
         }
     }
 
     template <typename T>
     inline void PackMatrixB_final(T *B, T *packedB, int InnerKernel_cols, int n, int rk, int k, int pad_cols) {
-#pragma omp parallel for
-        for (int j = 0; j < n; j += InnerKernel_cols)
-            PackMatrixB(B + j * k, InnerKernel_cols, rk, k, packedB + j * rk);
-        if (pad_cols)
-            PackMatrixB_pad(pad_cols, rk, packedB + n * rk);
+#pragma omp parallel
+        {
+#pragma omp for nowait
+            for (int j = 0; j < n; j += InnerKernel_cols)
+                PackMatrixB(B + j * k, InnerKernel_cols, rk, k, packedB + j * rk);
+            if (pad_cols)
+                PackMatrixB_pad(pad_cols, rk, packedB + n * rk);
+        }
     }
 
     template <typename T>
     void InnerKernel(T *b_A, T *b_B, T *C, int rm, int rk, int rn, int m, int n, int k, bool isFirst, bool isLast) {
         constexpr int InnerKernel_cols = inner_cols;
         constexpr int InnerKernel_rows = 4 * inner_rows / sizeof(T);
-		constexpr int half_step = basic_step / (sizeof(T) / sizeof(float)) * 2;
+        constexpr int half_step = basic_step / (sizeof(T) / sizeof(float)) * 2;
 
         //alloc memory for packing
         /*std::size_t packedARows = rm % 4 == 0 ? rm : (rm + 4 - rm % 4);
         std::size_t packedBCols = n % 4 == 0 ? n : (n + 4 - n % 4);*/
-		std::size_t packedARows = rm % 8 == 0 ? rm : (rm + 8 - rm % 8);
-		std::size_t packedBCols = n % 4 == 0 ? n : (n + 4 - n % 4);
+        std::size_t packedARows = rm % 8 == 0 ? rm : (rm + 8 - rm % 8);
+        std::size_t packedBCols = n % 4 == 0 ? n : (n + 4 - n % 4);
         static T *packedA = mynew<T>(packedARows * rk, 16);
         static T *packedB = mynew<T>(packedBCols * rk, 16);
         int EndVecRows = packedARows - packedARows % InnerKernel_rows;
