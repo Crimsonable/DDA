@@ -28,6 +28,20 @@ namespace DDA {
 			return _mm256_add_pd(l, r);
 	}
 
+	template<typename Vtype, typename std::enable_if<
+		std::is_same_v<Vtype, __m128> || std::is_same_v<Vtype, __m128d> || std::is_same_v<Vtype, __m256> || std::is_same_v<Vtype, __m256d>, int>::type = 0>
+		inline Vtype fmadd(const Vtype&a, const Vtype&b, const Vtype&c) {
+		if constexpr (std::is_same_v<Vtype, __m128>)
+			return _mm_fmadd_ps(a, b, c);
+		else if constexpr (std::is_same_v<Vtype, __m256>)
+			return _mm256_fmadd_ps(a, b, c);
+		else if constexpr (std::is_same_v<Vtype, __m128d>)
+			return _mm_fmaddsub_pd(a, b, c);
+		else if constexpr (std::is_same_v<Vtype, __m256d>)
+			return _mm256_fmadd_pd(a, b, c);
+	}
+
+
 	template<typename Vtype,typename T>
 	inline void load_ps(Vtype& dst, const T *src) {
 		if constexpr (std::is_same_v<Vtype, __m128>)
@@ -72,16 +86,17 @@ namespace DDA {
 
 	template<typename Vtype, typename T>
 	inline void store(T *dst, Vtype&& src) {
+		using real_Vtype = std::remove_reference_t<Vtype>;
 		if constexpr (std::is_same_v<T, float>) {
-			if constexpr (std::is_same_v<Vtype, __m128>)
+			if constexpr (std::is_same_v<real_Vtype, __m128>)
 				_mm_store_ps(dst, src);
-			else if constexpr (std::is_same_v<Vtype, __m256>)
+			else if constexpr (std::is_same_v<real_Vtype, __m256>)
 				_mm256_store_ps(dst, src);
 		}
 		else if constexpr (std::is_same_v<T, double>) {
-			if constexpr (std::is_same_v<Vtype, __m128d>)
+			if constexpr (std::is_same_v<real_Vtype, __m128d>)
 				_mm_store_pd(dst, src);
-			else if constexpr (std::is_same_v<Vtype, __m256d>)
+			else if constexpr (std::is_same_v<real_Vtype, __m256d>)
 				_mm256_store_pd(dst, src);
 		}
 	}

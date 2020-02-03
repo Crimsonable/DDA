@@ -2,7 +2,7 @@
 #include "MatrixBase.h"
 #include "Matrix.h"
 #include "SIMD.h"
-
+#include "Product.h"
 
 namespace DDA {
 	namespace internal {
@@ -11,7 +11,7 @@ namespace DDA {
 			static constexpr int size = traits<lhs>::size;
 			using scalar = Scalar;
 			static constexpr bool isXpr = true;
-			static constexpr bool isProduct = false;
+			static constexpr bool isDot = false;
 		};
 
 		template<typename Scalar,typename lhs,typename rhs>
@@ -19,7 +19,7 @@ namespace DDA {
 			static constexpr int size = traits<lhs>::size;
 			using scalar = Scalar;
 			static constexpr bool isXpr = true;
-			static constexpr bool isProduct = false;
+			static constexpr bool isDot = false;
 		};
 
 		template<typename Scalar,typename other>
@@ -27,15 +27,15 @@ namespace DDA {
 			static constexpr int size = traits<other>::size;
 			using scalar = Scalar;
 			static constexpr bool isXpr = true;
-			static constexpr bool isProduct = false;
+			static constexpr bool isDot = false;
 		};
 
 		template<typename Scalar,typename lhs,typename rhs>
-		struct traits<ProductOp<Scalar, lhs, rhs>> {
+		struct traits<MatDotOp<Scalar, lhs, rhs>> {
 			static constexpr int size = traits<lhs>::size;
 			using scalar = Scalar;
 			static constexpr bool isXpr = true;
-			static constexpr bool isProduct = true;
+			static constexpr bool isDot = true;
 		};
 	}
 
@@ -84,7 +84,7 @@ namespace DDA {
 		CwiseOpsum(){}
 		CwiseOpsum(const lhs& l, const rhs& r):base(l,r){}
 		CwiseOpsum(const CwiseOpsum& other):base(other._lhs,other._rhs) {}
-#ifdef DDA_SIMD
+#ifdef SIMD
 		template<typename Vtype>
 		inline typename internal::traits<Vtype>::vtype RecurFun(std::size_t idx) const {
 			typename internal::traits<Vtype>::vtype l, r;
@@ -131,7 +131,7 @@ namespace DDA {
 		CwiseOpproduct(){}
 		CwiseOpproduct(const lhs& l, const rhs& r):base(l,r){}
 		CwiseOpproduct(const CwiseOpproduct& other):base(other._lhs,other._rhs){}
-#ifdef DDA_SIMD
+#ifdef SIMD
 		template<typename Vtype>
 		inline typename internal::traits<Vtype>::vtype RecurFun(std::size_t idx) const {
 			typename internal::traits<Vtype>::vtype l, r;
@@ -176,7 +176,7 @@ namespace DDA {
 		CwiseOpscalar(){}
 		CwiseOpscalar(const Scalar& s,const other& o):base(0,o),s(s){}
 		CwiseOpscalar(const CwiseOpscalar& another):base(nullptr,another._rhs),s(another.s){}
-#ifdef DDA_SIMD
+#ifdef SIMD
 		template<typename Vtype>
 		inline typename internal::traits<Vtype>::vtype RecurFun(std::size_t idx) const {
 			typename internal::traits<Vtype>::vtype l, r;
@@ -199,6 +199,39 @@ namespace DDA {
 		}
 	};
 
+	/*template<typename Scalar,typename lhs,typename rhs>
+	class MatDotOp :public BinaryOp<lhs, rhs> {
+	private:
+		using dynamicMat = Matrix<Scalar, -1, -1>;
+		using dynamicMat_ptr = std::shared_ptr<dynamicMat>;
+		dynamicMat_ptr tempDotRes, tempLhsRes, tempRhsRes;
+	public:
+		typedef BinaryOp<lhs, rhs> base;
+		static constexpr bool lXpr = internal::traits<lhs>::isXpr;
+		static constexpr bool rXpr = internal::traits<rhs>::isXpr;
+		static constexpr bool islXprDot = internal::traits<lhs>::isDot;
+		static constexpr bool isrXprDot = internal::traits<rhs>::isDot;
+		int rows = this->_lhs->rows;
+		int cols = this->_rhs->cols;
+		MatDotOp() {}
+		MatDotOp(const lhs& l, const rhs& r) :base(l, r) {
+			//tempDotRes.resize(rows, cols);
+		}
+		MatDotOp(const MatDotOp& other) :base(other._lhs, other._rhs) {}
+
+		void InnerRun() {
+			if constexpr (lXpr) {
+				if constexpr (islXprDot) {
+					this->_lhs->InnerRun();
+					tempLhsRes = this->_lhs->tempLhsRes;
+				}
+				else {
+					tempLhsRes = std::make_shared<dynamicMat>();
+					tempLhsRes = *this->_lhs;
+				}
+			}
+		}
+	};*/
 
 	template<typename Derived, typename otherDerived>
 	CwiseOpsum<typename internal::traits<Derived>::scalar, Derived, otherDerived> operator +(const Derived& l, const otherDerived& r) {

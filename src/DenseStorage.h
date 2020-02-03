@@ -7,7 +7,7 @@ namespace DDA {
 		template<typename T, int size>
 		struct alignas(16) plain_array {
 			//T array[size+ VECTORIZATION_SIZE / (8 * sizeof(T)) - size % (sizeof(T))];
-			T array[size + 4];
+			T array[size + 8];
 		};
 
 		template<typename T>
@@ -15,7 +15,7 @@ namespace DDA {
 			T* array;
 			plain_array(std::size_t size) {
 				//size += VECTORIZATION_SIZE / (8 * sizeof(T)) - size % (sizeof(T));
-				size += 4;
+				size += 8;
 				array = reinterpret_cast<T*>(aligned_alloc(size * sizeof(T), 16));
 			}
 

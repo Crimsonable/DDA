@@ -11,6 +11,7 @@ namespace DDA {
 			static constexpr int size = Rows * Cols;
 			using scalar = Scalar;
 			static constexpr bool isXpr = false;
+			static constexpr bool isDot = false;
 		}; 
 
 		template<typename Scalar>
@@ -18,6 +19,7 @@ namespace DDA {
 			static constexpr int size = -1;
 			using scalar = Scalar;
 			static constexpr bool isXpr = false;
+			static constexpr bool isDot = false;
 		};
 	}
 	
