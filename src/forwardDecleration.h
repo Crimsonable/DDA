@@ -7,7 +7,7 @@
 #include<random>
 #include<functional>
 #include<cstdlib> 
-
+#include<memory>
 
 namespace DDA {
 	template<typename Derived> class MatrixBase;
@@ -24,7 +24,7 @@ namespace DDA {
 #define CPUID__FAM__
 #define VECTORIZATION_SIZE 128
 //#define EIGEN_USE_MKL_ALL
-//#define EIGEN_VECTORIZE_SSE4_2
+#define EIGEN_VECTORIZE_SSE4_2
 #define EIGEN_BENCHMARK
 //#define DEBUG_INFO
 //#define Dynamic -1

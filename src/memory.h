@@ -23,6 +23,13 @@ namespace DDA {
 	}
 
 	template<typename T>
+	T* mynew_fill0(std::size_t size, std::size_t alignment) {
+		T *ptr = reinterpret_cast<T*>(aligned_alloc(size * sizeof(T), alignment));
+		std::fill_n(ptr, size, T(0));
+		return ptr;
+	}
+
+	template<typename T>
 	T* mynew(std::size_t size, std::size_t alignment) {
 		T *ptr = reinterpret_cast<T*>(aligned_alloc(size * sizeof(T), alignment));
 		return ptr;

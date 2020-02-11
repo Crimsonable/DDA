@@ -9,7 +9,7 @@
 #endif // _DEBUG
 
 
-#define m_kernel 128
+#define m_kernel 256
 #define k_kernel 128
 #define inner_rows 16
 #define inner_cols 4
@@ -42,11 +42,16 @@ namespace DDA {
 
 		void PackMatrixA(T *A, int blockrows, int m, int block_k, T *packA, int pad_rows) {
 			int i = 0, j = 0;
-			for (j = 0; j < block_k; ++j) {
-				T *ptr = A + j * m;
-				memcpy(packA + j * blockrows, ptr, sizeof(T)*(blockrows - pad_rows));
-				for (int k = 0; k < pad_rows; ++k) {
-					*(packA + i + k + j * blockrows) = 0;
+//#pragma omp parallel
+			{
+//#pragma omp for nowait
+				for (j = 0; j < block_k; ++j) {
+					T *ptr = A + j * m;
+					int nonpad_num = blockrows - pad_rows;
+					memcpy(packA + j * blockrows, ptr, sizeof(T)*nonpad_num);
+					for (int k = 0; k < pad_rows; ++k) {
+						*(packA + nonpad_num + k + j * blockrows) = 0;
+					}
 				}
 			}
 		}
@@ -143,14 +148,16 @@ namespace DDA {
 
 			PackMatrixA_final(b_A, packedA, InnerKernel_rows, m, rk, rm, packedARows - rm, packedARows, 0);
 
-#pragma omp parallel for
-			for (int i = 0; i < EndVecRows; i += InnerKernel_rows) {
-				AddDot8x1<T, v_256<T>>(packedA + rk * i, b_B, C + i, rk, m, 1, k);
+#pragma omp parallel
+			{
+#pragma omp for schedule(static) nowait
+				for (int i = 0; i < EndVecRows; i += InnerKernel_rows) {
+					AddDot8x1<T, v_256<T>>(packedA + rk * i, b_B, C + i, rk, m, 1, k);
+				}
+				for (int i = EndVecRows; i < rm; i += basic_step) {
+					AddDot4x1<T, v_128<T>>(packedA + rk * i, b_B, C + i, rk, m, 1, k);
+				}
 			}
-			for (int i = EndVecRows; i < rm; i += basic_step) {
-				AddDot4x1<T, v_128<T>>(packedA + rk * i, b_B, C + i, rk, m, 1, k);
-			}
-
 			if (isLast) {
 				aligned_free(packedA);
 			}

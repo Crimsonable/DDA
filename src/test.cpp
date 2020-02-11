@@ -10,6 +10,7 @@ using namespace std;
 
 int main(int argc, char **argv) {
     DDA::Test<float> test;
-    test.Loop(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]));
+    auto f = &DDA::Test<float>::TestForMatDotPerforemence;
+    test.Loop(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), f);
     return 1;
 }

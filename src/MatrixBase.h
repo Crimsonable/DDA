@@ -24,7 +24,7 @@ namespace DDA {
 			ptr->toStorage() = const_cast<otherDerived&>(other).toStorage();
 		}
 
-#ifdef DDA_SIMD
+#ifdef SIMD
 		template<typename otherDerived, typename std::enable_if<
 											internal::traits<otherDerived>::isXpr, int>::type = 0>
 		void operator=(const otherDerived& other) {

@@ -7,6 +7,7 @@
 #define VELEMENT(i,j,k) c_##i##j##_c_##k##j##_vreg.v
 
 namespace DDA {
+	using namespace DDA::SSE_OP;
 	template <typename T, typename Vtype, typename std::enable_if<std::is_same_v<Vtype, v_128<T>> || std::is_same_v<Vtype, v_256<T>>, int>::type = 0>
 	inline void AddDot8x1(T *a, T *b, T *c, int block_k, int m, int n, int k) {
 		const constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
@@ -69,9 +70,11 @@ namespace DDA {
 	}
 
 	template <typename T, typename Vtype, typename std::enable_if<std::is_same_v<Vtype, v_128<T>> || std::is_same_v<Vtype, v_256<T>>, int>::type = 0>
-	void AddDot4x4(T *a, T *b, T *c, int block_k, int m, int n, int k, int current_c_col) {
+	void AddDot4x4(T *a, T *b, T *c, int block_k, int m, int n, int k, int current_c_col, int padRows, bool padMode) {
 		constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
 		const int left_cols = n - current_c_col > 4 ? 4 : n - current_c_col;
+		std::size_t c1 = 1 % left_cols, c2 = 2 % left_cols, c3 = 3 % left_cols;
+
 		Vtype
 			c_00_c_30_vreg,
 			c_01_c_31_vreg, c_02_c_32_vreg, c_03_c_33_vreg,
@@ -84,6 +87,11 @@ namespace DDA {
 		b_p1_pntr = b + block_k;
 		b_p2_pntr = b + 2 * block_k;
 		b_p3_pntr = b + 3 * block_k;
+
+		load_ps(VELEMENT(0, 0, 3), c);
+		load_ps(VELEMENT(0, 1, 3), c + c1 * m);
+		load_ps(VELEMENT(0, 2, 3), c + c2 * m);
+		load_ps(VELEMENT(0, 3, 3), c + c3 * m);
 
 		for (int p = 0; p < block_k; ++p) {
 			load_ps(a_0p_a_3p_vreg.v, a + VSIZE * p);
@@ -110,22 +118,30 @@ namespace DDA {
 
 		}
 
-		std::size_t c1 = 1 % left_cols, c2 = 2 % left_cols, c3 = 3 % left_cols;
-
-		for (int i = 0; i < VSIZE; ++i) {
-			*(c + i) += ELEMENT(0, 0, 3, i);
-			*(c + i + c1 * m) += ELEMENT(0, 1, 3, i);
-			*(c + i + c2 * m) += ELEMENT(0, 2, 3, i);
-			*(c + i + c3 * m) += ELEMENT(0, 3, 3, i);
+		if (padMode) {
+			Mask<Vtype> mask;
+			for (int i = 0; i < VSIZE - padRows; ++i)
+				mask.d[i] = ~0;
+			store_mask(c + c3 * m, mask.v, VELEMENT(0, 3, 3));
+			store_mask(c + c2 * m, mask.v, VELEMENT(0, 2, 3));
+			store_mask(c + c1 * m, mask.v, VELEMENT(0, 1, 3));
+			store_mask(c, mask.v, VELEMENT(0, 0, 3));
+		}
+		else {
+			store(c + c2 * m, VELEMENT(0, 2, 3));
+			store(c + c3 * m, VELEMENT(0, 3, 3));
+			store(c + c1 * m, VELEMENT(0, 1, 3));
+			store(c, VELEMENT(0, 0, 3));			
 		}
 	}
 
 	template <typename T, typename Vtype, typename std::enable_if<std::is_same_v<Vtype, v_128<T>> || std::is_same_v<Vtype, v_256<T>>, int>::type = 0>
-	void AddDot8x4(T *a, T *b, T *c, int block_k, int m, int n, int k, int current_c_col) {
+	void AddDot8x4(T *a, T *b, T *c, int block_k, int m, int n, int k, int current_c_col, int padRows, bool padMode) {
 		int p;
 		const int left_cols = n - current_c_col > 4 ? 4 : n - current_c_col;
 		constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
 		std::size_t c1 = 1 % left_cols, c2 = 2 % left_cols, c3 = 3 % left_cols;
+
 		Vtype
 			c_00_c_30_vreg,
 			c_01_c_31_vreg, c_02_c_32_vreg, c_03_c_33_vreg,
@@ -148,6 +164,7 @@ namespace DDA {
 		load_ps(VELEMENT(4, 1, 7), c + VSIZE + c1 * m);
 		load_ps(VELEMENT(4, 2, 7), c + VSIZE + c2 * m);
 		load_ps(VELEMENT(4, 3, 7), c + VSIZE + c3 * m);
+
 
 		for (p = 0; p < block_k; p++) {
 			load_ps(a_0p_a_3p_vreg.v, a + p * VSIZE * 2);
@@ -185,14 +202,30 @@ namespace DDA {
 			c_43_c_73_vreg.v = fmadd(a_4p_a_7p_vreg.v, b_p3_vreg.v, c_43_c_73_vreg.v);
 #endif // CPUID__FAM__
 		}
-
-		store(c, VELEMENT(0, 0, 3));
-		store(c + VSIZE, VELEMENT(4, 0, 7));
-		store(c + c1 * m, VELEMENT(0, 1, 3));
-		store(c + VSIZE + c1 * m, VELEMENT(4, 1, 7));
-		store(c + c2 * m, VELEMENT(0, 2, 3));
-		store(c + VSIZE + c2 * m, VELEMENT(4, 2, 7));
-		store(c + c3 * m, VELEMENT(0, 3, 3));
-		store(c + VSIZE + c3 * m, VELEMENT(4, 3, 7));
+		
+		
+		if (padMode) {
+			Mask<Vtype> mask;
+			for (int i = 0; i < VSIZE-padRows; ++i)
+				mask.d[i] = ~0;
+			store(c + c3 * m, VELEMENT(0, 3, 3));
+			store_mask(c + VSIZE + c3 * m, mask.v, VELEMENT(4, 3, 7));
+			store(c + c2 * m, VELEMENT(0, 2, 3));
+			store_mask(c + VSIZE + c2 * m, mask.v, VELEMENT(4, 2, 7));
+			store(c + c1 * m, VELEMENT(0, 1, 3));
+			store_mask(c + VSIZE + c1 * m, mask.v, VELEMENT(4, 1, 7));
+			store(c, VELEMENT(0, 0, 3));
+			store_mask(c + VSIZE, mask.v, VELEMENT(4, 0, 7));	
+		}
+		else {
+			store(c + c3 * m, VELEMENT(0, 3, 3));
+			store(c + VSIZE + c3 * m, VELEMENT(4, 3, 7));
+			store(c + c2 * m, VELEMENT(0, 2, 3));
+			store(c + VSIZE + c2 * m, VELEMENT(4, 2, 7));
+			store(c + c1 * m, VELEMENT(0, 1, 3));
+			store(c + VSIZE + c1 * m, VELEMENT(4, 1, 7));
+			store(c, VELEMENT(0, 0, 3));
+			store(c + VSIZE, VELEMENT(4, 0, 7));
+		}
 	}
 }
