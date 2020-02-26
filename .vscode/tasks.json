@@ -2,18 +2,11 @@
     "tasks": [
         {
             "type": "shell",
-            "label": "g++.exe build active file",
-            "command": "g++",
-            "args": [
-                "-std=c++17",
-                "-mavx2",
-                "-g",
-                "${file}",
-                "-o",
-                "${fileDirname}\\${fileBasenameNoExtension}.exe"
-            ],
+            "label": "gdb",
+            "command": "gdb ./curry",
+            "args": [],
             "options": {
-                "cwd": "${workspaceFolder}"
+                "cwd": "H:/toys/DDA/build"
             }
         }
     ],

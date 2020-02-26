@@ -18,16 +18,20 @@ namespace DDA {
 	template<typename Scalar, typename lhs, typename rhs> class CwiseOpproduct;
 	template<typename Scalar, typename other> class CwiseOpscalar;
 	template<typename Scalar, typename lhs, typename rhs> class MatDotOp;
+	template<typename Self> class TransOp;
 	//int Dynamic = -1;
 //#define CPUID__AVX2__
 #define SIMD
 #define CPUID__FAM__
-#define VECTORIZATION_SIZE 128
+#define VECTORIZATION_ALIGN_BYTES 32
 //#define EIGEN_USE_MKL_ALL
-#define EIGEN_VECTORIZE_SSE4_2
+//#define EIGEN_VECTORIZE_SSE4_2
 #define EIGEN_BENCHMARK
 //#define DEBUG_INFO
 //#define Dynamic -1
+#define VEC_CALL  
+#define FORCE_INLINE inline
+#define PAD_MOD 8
 
 	namespace internal {
 		template<typename T> struct traits;

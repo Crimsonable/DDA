@@ -7,19 +7,19 @@ namespace DDA
 namespace internal
 {
 template <typename T, int size>
-struct alignas(16) plain_array
+struct alignas(VECTORIZATION_ALIGN_BYTES) plain_array
 {
     T array[size + 8];
 };
 
 template <typename T>
-struct alignas(16) plain_array<T, -1>
+struct alignas(VECTORIZATION_ALIGN_BYTES) plain_array<T, -1>
 {
     T *array;
     plain_array(std::size_t size)
     {
         size += 8;
-        array = mynew_fill0<T>(size, 16);
+        array = mynew_fill0<T>(size, VECTORIZATION_ALIGN_BYTES);
     }
 
     ~plain_array()
@@ -115,7 +115,7 @@ public:
 
     void resize(int newRows, int newCols)
     {
-        int newSize = newCols * newRows;
+		int newSize = newRows * newCols;
         if (newSize > size)
         {
             m_storage.reset(new plainType(newSize));
@@ -126,7 +126,7 @@ public:
     }
 
     template <typename otherDenseStorage>
-    inline void share(otherDenseStorage other_storage)
+    inline void share(otherDenseStorage other_storage)		//other_storage must be a pointer
     {
         m_storage.reset();
         m_storage = other_storage->m_storage;
@@ -136,7 +136,7 @@ public:
     }
 
     template <typename otherDenseStorage>
-    inline void swap(otherDenseStorage other_storage)
+    inline void swap(otherDenseStorage other_storage)		//other_storage must be a pointer
     {
         std::swap(m_storage, other_storage->m_storage);
     }

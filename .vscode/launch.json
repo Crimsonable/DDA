@@ -1,29 +1,37 @@
 {
-    // 使用 IntelliSense 了解相关属性。 
-    // 悬停以查看现有属性的描述。
-    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "g++.exe build and debug active file",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": true,
-            "MIMode": "gdb",
-            "miDebuggerPath": "G:\\buildtools\\rua\\bin\\gdb.exe",
-            "setupCommands": [
-                {
-                    "description": "为 gdb 启用整齐打印",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "g++.exe build active file"
+
+      {
+        "name": "(gdb) Launch",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "/mnt/h/toys/DDA/build/curry",
+        "args": [""],
+        "stopAtEntry": false,
+        "cwd": "/mnt/h/toys/DDA/build/",
+        "environment": [],
+        "externalConsole": true,
+        "windows": {
+          "MIMode": "gdb",
+          "miDebuggerPath": "/usr/bin/gdb",
+          "setupCommands": [
+            {
+              "description": "Enable pretty-printing for gdb",
+              "text": "-enable-pretty-printing",
+              "ignoreFailures": true
+            }
+          ]
+        },
+        "pipeTransport": {
+          "pipeCwd": "",
+          "pipeProgram": "bash.exe", 
+          "pipeArgs": ["-c"],
+          "debuggerPath": "/usr/bin/gdb"
+        },
+        "sourceFileMap": {
+          "/mnt/c": "c:\\",
         }
+      }
     ]
-}
+  }
