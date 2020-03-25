@@ -90,7 +90,7 @@ public:
     {
         src *temp_src = const_cast<src *>(&s);
         temp_src->template RecurFun<v_128<dtype>>(0);
-        d->swap(temp_src->tempDotRes);
+        d->share(temp_src->tempDotRes);
     }
 };
 
@@ -321,11 +321,11 @@ MatDotOp<typename internal::traits<Derived>::scalar, Derived, otherDerived> oper
     return typename MatDotOp<typename internal::traits<Derived>::scalar, Derived, otherDerived>::MatDotOp(l, r);
 }
 
-/*template<typename Derived, typename otherDerived, typename std::enable_if<
+template<typename Derived, typename otherDerived, typename std::enable_if<
 														!std::is_arithmetic_v<Derived>&&!std::is_arithmetic_v<otherDerived>,int>::type=0>
-	CwiseOpproduct<typename internal::traits<Derived>::scalar, Derived, otherDerived> operator *(const Derived& l, const otherDerived& r) {
-		return typename CwiseOpproduct<typename internal::traits<Derived>::scalar, Derived, otherDerived>::CwiseOpproduct(l, r);
-	}*/
+	CwiseOpproduct<typename internal::traits<Derived>::scalar, Derived, otherDerived> CwiseSum(const Derived& l, const otherDerived& r) {
+	return typename CwiseOpproduct<typename internal::traits<Derived>::scalar, Derived, otherDerived>::CwiseOpproduct(l, r);
+}
 
 template <typename Scalar, typename otherDerived, typename std::enable_if<std::is_arithmetic_v<Scalar> && !std::is_arithmetic_v<otherDerived>, int>::type = 0>
 CwiseOpscalar<Scalar, otherDerived> operator*(const Scalar &s, const otherDerived &o)

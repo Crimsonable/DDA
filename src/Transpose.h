@@ -9,10 +9,9 @@
 #include "testTools.h"
 #endif // _DEBUG
 
-using namespace DDA::SSE_OP;
 using std::enable_if;
 using std::is_same_v;
-#define MAT_SCALAR_INDICATOR(MAT_TYPE,SCALAR_TYPE) is_same_v<typename internal::traits<MAT_TYPE>::scalar,SCALAR_TYPE>
+#define MAT_SCALAR_INDICATOR(MAT_TYPE,SCALAR_TYPE) is_same_v<typename internal::traits<##MAT_TYPE##>::scalar,##SCALAR_TYPE##>
 
 
 namespace DDA {
@@ -136,5 +135,6 @@ namespace DDA {
 				}
 			}
 		}
+		aligned_free(buffer);
 	}
 }

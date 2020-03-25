@@ -41,7 +41,7 @@ namespace DDA {
 #ifdef EIGEN_BENCHMARK
 			ea = std::make_shared<Eigen_MatType>();
 			eb = std::make_shared<Eigen_MatType>();
-			ec = std::make_shared<Eigen_MatType>();
+			ec = std::make_shared<Eigen_MatType>();	
 			ea->resize(M, K);
 			eb->resize(K, N);
 			ec->resize(M, N);
@@ -53,13 +53,12 @@ namespace DDA {
 				eb->coeffRef(i) = b->coeff(i);
 			}
 #endif // EIGEN_BENCHMARK
-
-#ifndef _DEBUG
-			omp_set_num_threads(numThread);
-#endif
 		}
 
         TestFuncRetType TestForMatDotPerforemence() {
+#ifndef _DEBUG
+			omp_set_num_threads(numThread);
+#endif
 			c->setZeros();
             t0 = std::chrono::steady_clock::now();
 			Product(a.get(), b.get(), c.get());
@@ -87,6 +86,9 @@ namespace DDA {
         }
 
 		TestFuncRetType TestForMatDotPerforemence_para(int rk) {
+#ifndef _DEBUG
+			omp_set_num_threads(numThread);
+#endif
 			c->setZeros();
 			t0 = std::chrono::steady_clock::now();
 			Product(a.get(), b.get(), c.get(), rk);
@@ -114,14 +116,20 @@ namespace DDA {
 		}
 
         TestFuncRetType TestForMatExpression() {
+#ifndef _DEBUG
+			omp_set_num_threads(numThread);
+#endif
             t0 = std::chrono::steady_clock::now();
-            *c = Transpose(*a) * *b;
+            *c = *a * *b;
             t1 = std::chrono::steady_clock::now();
             timeSpan0 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
             return {false, timeSpan0.count(), 0, c->sum(), 0};
         }
 
 		TestFuncRetType TestForMatTranspose() {
+#ifndef _DEBUG
+			omp_set_num_threads(numThread);
+#endif
 			t0 = std::chrono::steady_clock::now();
 			*a = Transpose(*b);
 			t1 = std::chrono::steady_clock::now();
@@ -171,6 +179,7 @@ namespace DDA {
 
             printTestRes("Matrix Dot Test :" + std::to_string(M) + '*' + std::to_string(K) + '*' + std::to_string(N),
                          double(total_t / n), average_flops);
+			cout << "max_gflops: " << maxflops << endl;
             if (flag) {
                 printTestRes("Eigen Matrix Dot :" + std::to_string(M) + '*' + std::to_string(K) + '*' + std::to_string(N),
                              double(total_et / n), average_flopse);

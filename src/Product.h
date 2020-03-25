@@ -5,6 +5,10 @@
 #include "ProductHandler.h"
 #include "Pack.h"
 
+#ifdef HAS_CUDA
+#include "CublasProduct.cuh"
+#endif // HAS_CUDA
+
 #ifdef _DEBUG
 #include"testTools.h"
 #endif // _DEBUG
@@ -103,13 +107,15 @@ namespace DDA {
 		}
 	};
 
-    template <typename lhs, typename rhs, typename dst>
-    void Product(lhs *A, rhs *B, dst *C) {
-        auto ptrA = A->data();
-        auto ptrB = B->data();
-        auto ptrC = C->data();
-        int p, q, rp = k_kernel, rq = m_kernel;
-        int m = A->rows, k = A->cols, n = B->cols;
+	template <typename lhs, typename rhs, typename dst>
+	void Product(lhs *A, rhs *B, dst *C) {
+		auto ptrA = A->data();
+		auto ptrB = B->data();
+		auto ptrC = C->data();
+		int m = A->rows, k = A->cols, n = B->cols;
+
+#ifndef HAS_CUDA
+		int p, q, rp = k_kernel, rq = m_kernel;
 		ProductCls<std::remove_reference_t<decltype(*ptrA)>> productInstance;
 
 		if (n != 1) {
@@ -122,23 +128,32 @@ namespace DDA {
 			}
 		}
 		else {
-            for (p = 0; p < k; p += rp) {
-                rp = _min_(k - p, k_kernel);
-                for (q = 0; q < m; q += rq) {
-                    rq = _min_(m - q, m_kernel);
-                    productInstance.MatDotVectorKernel(ptrA + m * p + q, ptrB + p, ptrC + q, rq, rp, n, m, n, k, q == 0, p == k - rp && q == m - rq);
-                }
-            }
-        }
-    }
+			for (p = 0; p < k; p += rp) {
+				rp = _min_(k - p, k_kernel);
+				for (q = 0; q < m; q += rq) {
+					rq = _min_(m - q, m_kernel);
+					productInstance.MatDotVectorKernel(ptrA + m * p + q, ptrB + p, ptrC + q, rq, rp, n, m, n, k, q == 0, p == k - rp && q == m - rq);
+				}
+			}
+		}
+#else
+		if constexpr (std::is_same_v<std::remove_reference_t<decltype(*ptrA)>, float>)
+			cudaProductS(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
+		else if constexpr (std::is_same_v<std::remove_reference_t<decltype(*ptrA)>, double>)
+			cudaProductD(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
+#endif
+		
+	}
 
 	template <typename lhs, typename rhs, typename dst>
 	void Product(lhs *A, rhs *B, dst *C, int kkernel) {
 		auto ptrA = A->data();
 		auto ptrB = B->data();
 		auto ptrC = C->data();
-		int p, q, rp = kkernel, rq = m_kernel;
 		int m = A->rows, k = A->cols, n = B->cols;
+
+#ifndef HAS_CUDA
+		int p, q, rp = kkernel, rq = m_kernel;
 		ProductCls<std::remove_reference_t<decltype(*ptrA)>> productInstance;
 
 		if (n != 1) {
@@ -159,5 +174,11 @@ namespace DDA {
 				}
 			}
 		}
+#else
+		if constexpr (std::is_same_v<std::remove_reference_t<decltype(*ptrA)>, float>)
+			cudaProductS(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
+		else if constexpr (std::is_same_v<std::remove_reference_t<decltype(*ptrA)>, double>)
+			cudaProductD(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
+#endif
 	}
 }  // namespace DDA

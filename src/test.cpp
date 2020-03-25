@@ -2,15 +2,16 @@
 #include <vector>
 #include "eigen/Eigen/Dense"
 #include "unitTest.h"
-#include<fstream>
+#include <fstream>
 #include "Rua.h"
 
-#define M 7
-#define K 7
-#define N 7
-#define NUM_THREADS 1
+#define M 2048
+#define K 2048
+#define N 2048
+#define NUM_THREADS 4
 
 using namespace std;
+using DDA::Index;
 
 void parameters_choose(int start, int end, int step, int n) {
 	using data = std::tuple<double, double, double, double>;
@@ -43,12 +44,14 @@ void parameters_choose(int start, int end, int step, int n) {
 }
 
 int main() {
+	//Eigen::PartialPivLU<Eigen::Matrix<float, -1, -1>> lu;
 	//parameters_choose(128, 512, 8, 50);
 	DDA::Test<float> test(M, K, N, NUM_THREADS);
 	//auto f = &DDA::Test<float>::TestForMatExpression;
-	auto f = &DDA::Test<float>::TestForMatTranspose;
-	//auto f = &DDA::Test<float>::TestForMatDotPerforemence;
-	test.Loop(1, f);
-	//system("pause");
+	//auto f = &DDA::Test<float>::TestForMatTranspose;
+	auto f = &DDA::Test<float>::TestForMatDotPerforemence;
+	test.Loop(50, f);
+	//testForBlock();
+	system("pause");
     return 1;
 }

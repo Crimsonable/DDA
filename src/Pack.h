@@ -81,7 +81,7 @@ namespace DDA {
 		{
 //#pragma omp for schedule(static) nowait
 			for (int i = 0; i < rows; i += kernel_rows) {
-				int real_pack_rows = rows - i > kernel_rows ? kernel_rows : rows - i;
+				int real_pack_rows = rows - i >= kernel_rows ? kernel_rows : rows - i;
 				for (int j = 0; j < kernel_cols; ++j) {
 					memcpy(buffer + j * kernel_rows + i * kernel_cols, mat + j * rows + i, sizeof(T)*real_pack_rows);
 				}
