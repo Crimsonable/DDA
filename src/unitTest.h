@@ -2,12 +2,9 @@
 #include <chrono>
 #include <string>
 #include <vector>
-#include "Matrix.h"
-#include "BinaryOp.h"
-#include "Product.h"
-#include "eigen/Eigen/Dense"
 #include "forwardDecleration.h"
-#include "SingleOp.h"
+#include "Rua.h"
+#include "eigen/Eigen/Dense"
 
 namespace DDA {
     template <typename dtype>
@@ -42,7 +39,7 @@ namespace DDA {
 			ea = std::make_shared<Eigen_MatType>();
 			eb = std::make_shared<Eigen_MatType>();
 			ec = std::make_shared<Eigen_MatType>();	
-			ea->resize(M, K);
+			ea->resize(M,K);
 			eb->resize(K, N);
 			ec->resize(M, N);
 			ec->setZero();
@@ -62,6 +59,7 @@ namespace DDA {
 			c->setZeros();
             t0 = std::chrono::steady_clock::now();
 			Product(a.get(), b.get(), c.get());
+			//(*c).alias() = (*a)*(*b);
             t1 = std::chrono::steady_clock::now();
             timeSpan0 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
 
@@ -75,7 +73,7 @@ namespace DDA {
             t3 = std::chrono::steady_clock::now();
             timeSpan1 = std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2);
 #ifdef DEBUG_INFO
-            std::cout << ec;
+            std::cout << *ec;
 #endif  // DEBUG_INFO
             return {true, timeSpan0.count(), timeSpan1.count(), c->sum(), ec->sum()};
 #endif
@@ -105,7 +103,7 @@ namespace DDA {
 			t3 = std::chrono::steady_clock::now();
 			timeSpan1 = std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2);
 #ifdef DEBUG_INFO
-			std::cout << ec;
+			std::cout << *ec;
 #endif  // DEBUG_INFO
 			return { true, timeSpan0.count(), timeSpan1.count(), c->sum(), ec->sum() };
 #endif
@@ -202,4 +200,4 @@ namespace DDA {
             std::cout << "Gfloaps: " << Gfloaps << std::endl;
         }
     };
-}  // namespace DDA
+}

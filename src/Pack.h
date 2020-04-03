@@ -77,9 +77,9 @@ namespace DDA {
 
 	template<typename T>
 	inline void PackMatrix_T(T *mat, const int& kernel_rows, const int& kernel_cols, const int& rows, const int& cols, T *buffer, const int& buffer_size) {
-//#pragma omp parallel
+		//#pragma omp parallel
 		{
-//#pragma omp for schedule(static) nowait
+			//#pragma omp for schedule(static) nowait
 			for (int i = 0; i < rows; i += kernel_rows) {
 				int real_pack_rows = rows - i >= kernel_rows ? kernel_rows : rows - i;
 				for (int j = 0; j < kernel_cols; ++j) {

@@ -6,7 +6,7 @@
 #include "Pack.h"
 
 #ifdef HAS_CUDA
-#include "CublasProduct.cuh"
+#include "CublasProduct.h"
 #endif // HAS_CUDA
 
 #ifdef _DEBUG
@@ -44,19 +44,20 @@ namespace DDA {
 	private:
 		T *packedA = nullptr, *packedB = nullptr;
 		ProductHanlder<T> *handler = nullptr;
+		static constexpr int KernelRowSize = 16 / sizeof(T) * sizeof(float);
 
 	public:
 		~ProductCls() {
-			aligned_free(packedA);
-			aligned_free(packedB);
+			if(packedA) aligned_free(packedA);
+			if(packedB) aligned_free(packedB);
 			std::free(handler);
 		}
 
-		FORCE_INLINE void InnerKernel(T *b_A, T *b_B, T *C, int rm, int rk, int rn, int m, int n, int k, bool isFirst) {
+		FORCE_INLINE void GEMM_Kernel(T *b_A, T *b_B, T *C, int rm, int rk, int rn, int m, int n, int k, bool isFirst) {
 			//alloc memory for packing
-			static std::size_t packedARows = rm % 8 == 0 ? rm : (rm + 8 - rm % 8);
+			static std::size_t packedARows = rm % KernelRowSize == 0 ? rm : (rm + KernelRowSize - rm % KernelRowSize);
 			static std::size_t packedBCols = n % 4 == 0 ? n : (n + 4 - n % 4);
-			//static std::size_t packedBCols = n % 8 == 0 ? n : (n + 8 - n % 8);
+
 			if (!packedA && !packedB) {
 				packedA = mynew<T>(packedARows * rk, VECTORIZATION_ALIGN_BYTES);
 				packedB = mynew<T>(packedBCols * rk, VECTORIZATION_ALIGN_BYTES);
@@ -79,31 +80,33 @@ namespace DDA {
 			DEBUG_TOOLS::printRawMatrix(b_B, k, n, "B:");
 #endif // DEBUG_INFO
 
-			handler->template InnerLoop<T>();
+			handler->GEMM_InnerLoop();
 		}
 
-		void MatDotVectorKernel(T *b_A, T *b_B, T *C, int rm, int rk, int rn, int m, int n, int k, bool isFirst, bool isLast) {
-			const constexpr int InnerKernel_rows = 4 * inner_rows / sizeof(T);
+		template<typename T>
+		FORCE_INLINE void GEMP_Kernel(T *b_A, T *b_B, T *C, int rm, int rk, int rn, int m, int n, int k) {
+			static std::size_t packedARows = rm % KernelRowSize == 0 ? rm : (rm + KernelRowSize - rm % KernelRowSize);
 
-			std::size_t packedARows = rm % 4 == 0 ? rm : (rm + 4 - rm % 4);
-			static T *packedA = mynew<T>(packedARows * rk, 16);
-			int EndVecRows = rm - rm % InnerKernel_rows;
-
-			PackMatrixA_final(b_A, InnerKernel_rows, m, rk, rm, packedARows - rm, packedARows, 0, packedA);
-
-#pragma omp parallel
-			{
-#pragma omp for schedule(static) nowait
-				for (int i = 0; i < EndVecRows; i += InnerKernel_rows) {
-					AddDot8x1<T, v_256<T>>(packedA + rk * i, b_B, C + i, rk, m, 1, k);
-				}
-				for (int i = EndVecRows; i < rm; i += basic_step) {
-					AddDot4x1<T, v_128<T>>(packedA + rk * i, b_B, C + i, rk, m, 1, k);
-				}
+			if (!packedA && !packedB) {
+				packedA = mynew<T>(packedARows * rk, VECTORIZATION_ALIGN_BYTES);
 			}
-			if (isLast) {
-				aligned_free(packedA);
+			if (!handler) {
+				handler = new ProductHanlder<T>(m, n, k, rm, rk, rn, packedARows, rn, packedA, b_B, C);
 			}
+
+			handler->update(rm, rn, rk, rn, C);
+
+			//pack InnerKernel A(rm*rk) into packedA
+			PackMatrixA_final(b_A, handler->GetInnerRows(), m, rk, rm, handler->GetPadRows(), handler->GetTotalRows(), handler->GetPadStep(), packedA);
+
+#ifdef DEBUG_INFO
+			DEBUG_TOOLS::printRawMatrix(packedA, handler->GetInnerRows(), packedARows*rk / handler->GetInnerRows(), "packedA:");
+			DEBUG_TOOLS::printRawMatrix(b_B, rk, n, "packedB:");
+			DEBUG_TOOLS::printRawMatrix(b_A, m, k, "A:");
+			DEBUG_TOOLS::printRawMatrix(b_B, k, n, "B:");
+#endif // DEBUG_INFO
+
+			handler->GEMP_InnerLoop();
 		}
 	};
 
@@ -115,37 +118,31 @@ namespace DDA {
 		int m = A->rows, k = A->cols, n = B->cols;
 
 #ifndef HAS_CUDA
-		int p, q, rp = k_kernel, rq = m_kernel;
+		int colStep = k_kernel, rowStep = m_kernel;
 		ProductCls<std::remove_reference_t<decltype(*ptrA)>> productInstance;
 
-		if (n != 1) {
-			for (p = 0; p < k; p += rp) {
-				rp = _min_(k - p, k_kernel);
-				for (q = 0; q < m; q += rq) {
-					rq = _min_(m - q, m_kernel);
-					productInstance.InnerKernel(ptrA + m * p + q, ptrB + p, ptrC + q, rq, rp, n, m, n, k, q == 0);
+			if (n > 64) {
+				for (int colIndex = 0; colIndex < k; colIndex += colStep) {
+					colStep = _min_(k - colIndex, k_kernel);
+					for (int rowIndex = 0; rowIndex < m; rowIndex += rowStep) {
+						rowStep = _min_(m - rowIndex, m_kernel);
+						productInstance.GEMM_Kernel(ptrA + m * colIndex + rowIndex, ptrB + colIndex, ptrC + rowIndex, rowStep, colStep, n, m, n, k, rowIndex == 0);
+					}
 				}
 			}
-		}
-		else {
-			for (p = 0; p < k; p += rp) {
-				rp = _min_(k - p, k_kernel);
-				for (q = 0; q < m; q += rq) {
-					rq = _min_(m - q, m_kernel);
-					productInstance.MatDotVectorKernel(ptrA + m * p + q, ptrB + p, ptrC + q, rq, rp, n, m, n, k, q == 0, p == k - rp && q == m - rq);
+			else {
+				for (int rowIndex = 0; rowIndex < m; rowIndex += rowStep) {
+					rowStep = _min_(m - rowIndex, m_kernel);
+					productInstance.GEMP_Kernel(ptrA + rowIndex, ptrB, ptrC + rowIndex, rowStep, k, n, m, n, k);
 				}
 			}
-		}
 #else
-		if constexpr (std::is_same_v<std::remove_reference_t<decltype(*ptrA)>, float>)
-			cudaProductS(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
-		else if constexpr (std::is_same_v<std::remove_reference_t<decltype(*ptrA)>, double>)
-			cudaProductD(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
+		cudaProduct(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
 #endif
 		
 	}
 
-	template <typename lhs, typename rhs, typename dst>
+	/*template <typename lhs, typename rhs, typename dst>
 	void Product(lhs *A, rhs *B, dst *C, int kkernel) {
 		auto ptrA = A->data();
 		auto ptrB = B->data();
@@ -175,10 +172,7 @@ namespace DDA {
 			}
 		}
 #else
-		if constexpr (std::is_same_v<std::remove_reference_t<decltype(*ptrA)>, float>)
-			cudaProductS(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
-		else if constexpr (std::is_same_v<std::remove_reference_t<decltype(*ptrA)>, double>)
-			cudaProductD(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
+		cudaProduct(ptrA, ptrB, ptrC, A->rows, B->cols, A->cols);
 #endif
-	}
+	}*/
 }  // namespace DDA

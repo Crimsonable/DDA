@@ -32,6 +32,19 @@ namespace DDA {
 
 		template<typename Vtype, typename std::enable_if<
 			std::is_same_v<Vtype, __m128> || std::is_same_v<Vtype, __m128d> || std::is_same_v<Vtype, __m256> || std::is_same_v<Vtype, __m256d>, int>::type = 0>
+			FORCE_INLINE Vtype VEC_CALL operator-(const Vtype&l, const Vtype&r) {
+			if constexpr (std::is_same_v<Vtype, __m128>)
+				return _mm_sub_ps(l, r);
+			else if constexpr (std::is_same_v<Vtype, __m256>)
+				return _mm256_sub_ps(l, r);
+			else if constexpr (std::is_same_v<Vtype, __m128d>)
+				return _mm_sub_pd(l, r);
+			else if constexpr (std::is_same_v<Vtype, __m256d>)
+				return _mm256_sub_pd(l, r);
+		}
+
+		template<typename Vtype, typename std::enable_if<
+			std::is_same_v<Vtype, __m128> || std::is_same_v<Vtype, __m128d> || std::is_same_v<Vtype, __m256> || std::is_same_v<Vtype, __m256d>, int>::type = 0>
 			FORCE_INLINE Vtype VEC_CALL fmadd(const Vtype&a, const Vtype&b, const Vtype&c) {
 			if constexpr (std::is_same_v<Vtype, __m128>)
 				return _mm_fmadd_ps(a, b, c);

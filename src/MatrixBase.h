@@ -5,13 +5,13 @@
 namespace DDA {
 
 	template<typename Derived>
-	class MatrixBase {
+	class MatrixBase :CommonBase
+	{
 	private:
 		using traits = internal::traits<Derived>;
 		using scalar = typename traits::scalar;
-
+		bool force_lazy = false;
 		Derived *ptr = derived();
-
 		inline Derived* derived() { return static_cast<Derived*>(this); }
 
 	public:
@@ -27,27 +27,21 @@ namespace DDA {
 			ptr->toStorage() = const_cast<otherDerived&>(other).toStorage();
 		}
 
-#ifdef SIMD
 		template<typename otherDerived, typename std::enable_if<
 											internal::traits<otherDerived>::isXpr, int>::type = 0>
 		void operator=(const otherDerived& other) {
             if constexpr(traits::size==-1){
                 ptr->resize(other.rows, other.cols);
             }
-			const_cast<otherDerived&>(other).toXprBase().run(ptr, other);
+			const_cast<otherDerived&>(other).toXprBase().run(ptr, other, force_lazy);
+			force_lazy = false;
 		}
 
-#else
-
-
-		template<typename otherDerived, typename std::enable_if<
-											internal::traits<otherDerived>::isXpr,int>::type=0>
-		void operator=(const otherDerived& other) {
-			Derived* ptr = derived();
-			for (int i{}; i < ptr->size; ++i)
-				ptr->coeffRef(i) = other.coeff(i);
+		inline Derived& alias() {
+			force_lazy = true;
+			return *ptr;
 		}
-#endif
+
 		Iterator<Derived> begin() {
 			auto it = Iterator(*ptr);
 			it.begin();

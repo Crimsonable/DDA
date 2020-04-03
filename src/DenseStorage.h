@@ -149,6 +149,9 @@ namespace DDA
 		inline void swap(otherDenseStorage other_storage)		
 		//other_storage must be a pointer
 		{
+			size = other_storage->size;
+			rows = other_storage->rows;
+			cols = other_storage->cols;
 			std::swap(m_storage, other_storage->m_storage);
 		}
 

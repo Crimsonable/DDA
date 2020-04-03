@@ -10,68 +10,57 @@ namespace DDA
 {
 	using namespace DDA::SSE_OP;
 	template <typename T, typename Vtype, typename std::enable_if<std::is_same_v<Vtype, v_128<T>> || std::is_same_v<Vtype, v_256<T>>, int>::type = 0>
-	inline void AddDot8x1(T *a, T *b, T *c, int block_k, int m, int n, int k)
+	FORCE_INLINE void VEC_CALL AddDot8x1(T *a, T *b, T *c, int block_k, int m, int n, int k, const int& lda, const int& ldb, int current_c_col, int padRows, bool padMode)
 	{
-		const constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
+		int p;
+		constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
+
 		Vtype
-			c_00_c_30_vreg,
-			c_40_c_70_vreg,
+			c_00_c_30_vreg,c_40_c_70_vreg,
 			a_0p_a_3p_vreg, a_4p_a_7p_vreg,
 			b_p0_vreg;
 
-		T *b_p0_pntr = b;
-		const constexpr int step = 1;
-		for (int p = 0; p < block_k; p += step)
-		{
-			load_ps(a_0p_a_3p_vreg.v, a + VSIZE * 2 * p);
-			load_ps(a_4p_a_7p_vreg.v, a + VSIZE * (2 * p + 1));
+		T *b_pntr, *a_top_pntr, *a_down_pntr;
+		b_pntr = b;
 
-			load_ps1(b_p0_vreg.v, b_p0_pntr++);
-#ifdef CPUID__AVX2__
-			c_00_c_30_vreg.v = b_p0_vreg.v * a_0p_a_3p_vreg.v + c_00_c_30_vreg.v;
-			c_40_c_70_vreg.v = b_p0_vreg.v * a_4p_a_7p_vreg.v + c_40_c_70_vreg.v;
-#endif // CPUID__AVX2__
+		a_top_pntr = a;
+		a_down_pntr = a + VSIZE;
 
-#ifdef CPUID__FAM__
-			c_00_c_30_vreg.v = fmadd(b_p0_vreg.v, a_0p_a_3p_vreg.v, c_00_c_30_vreg.v);
-			c_40_c_70_vreg.v = fmadd(b_p0_vreg.v, a_4p_a_7p_vreg.v, c_00_c_30_vreg.v);
-#endif // CPUID__FAM__
+		load_ps(VELEMENT(0, 0, 3), c);
+		load_ps(VELEMENT(4, 0, 7), c + VSIZE);
+
+		for (int p = 0; p < block_k; ++p) {
+			load_ps(a_0p_a_3p_vreg.v, a_top_pntr);
+			load_ps(a_4p_a_7p_vreg.v, a_down_pntr);
+
+			load_ps1(b_p0_vreg.v, b_pntr++);
+
+			c_00_c_30_vreg.v = fmadd(a_0p_a_3p_vreg.v, b_p0_vreg.v, c_00_c_30_vreg.v);
+			c_40_c_70_vreg.v = fmadd(a_4p_a_7p_vreg.v, b_p0_vreg.v, c_40_c_70_vreg.v);
+
+			a_top_pntr += lda;
+			a_down_pntr += lda;
 		}
 
-		for (int i = 0; i < VSIZE; ++i)
+		if (padMode)
 		{
-			*(c + i) += ELEMENT(0, 0, 3, i);
-			*(c + VSIZE + i) += ELEMENT(4, 0, 7, i);
+			Mask<Vtype> mask;
+			if (padRows > VSIZE) {
+				for (int i = 0; i < VSIZE - padRows % VSIZE; ++i)
+					mask.d[i] = ~0;
+				store_mask(c, mask.v, VELEMENT(0, 0, 3));
+			}
+			else {
+				for (int i = 0; i < VSIZE - padRows; ++i)
+					mask.d[i] = ~0;
+				store(c, VELEMENT(0, 0, 3));
+				store_mask(c + VSIZE, mask.v, VELEMENT(4, 0, 7));
+			}
 		}
-	}
-
-	template <typename T, typename Vtype, typename std::enable_if<std::is_same_v<Vtype, v_128<T>> || std::is_same_v<Vtype, v_256<T>>, int>::type = 0>
-	inline void AddDot4x1(T *a, T *b, T *c, int block_k, int m, int n, int k)
-	{
-		const constexpr int VSIZE = sizeof(Vtype) / sizeof(T);
-		Vtype
-			c_00_c_30_vreg,
-			a_0p_a_3p_vreg,
-			b_p0_vreg;
-
-		T *b_p0_pntr = b;
-		const constexpr int step = 1;
-		for (int p = 0; p < block_k; p += step)
+		else
 		{
-			load_ps(a_0p_a_3p_vreg.v, a + VSIZE * p);
-			load_ps1(b_p0_vreg.v, b_p0_pntr++);
-#ifdef CPUID__AVX2__
-			c_00_c_30_vreg.v = b_p0_vreg.v * a_0p_a_3p_vreg.v + c_00_c_30_vreg.v;
-#endif // CPUID__AVX2__
-
-#ifdef CPUID__FAM__
-			c_00_c_30_vreg.v = fmadd(b_p0_vreg.v, a_0p_a_3p_vreg.v, c_00_c_30_vreg.v);
-#endif // CPUID__FAM__
-		}
-
-		for (int i = 0; i < VSIZE; ++i)
-		{
-			*(c + i) += ELEMENT(0, 0, 3, i);
+			store(c, VELEMENT(0, 0, 3));
+			store(c + VSIZE, VELEMENT(4, 0, 7));
 		}
 	}
 
@@ -150,7 +139,7 @@ namespace DDA
 	}
 
 	template <typename T, typename Vtype, typename std::enable_if<std::is_same_v<Vtype, v_128<T>> || std::is_same_v<Vtype, v_256<T>>, int>::type = 0>
-	FORCE_INLINE void VEC_CALL AddDot8x4(T *a, T *b, T *c, int block_k, int m, int n, int k, int current_c_col, int padRows, bool padMode)
+	FORCE_INLINE void VEC_CALL AddDot8x4(T *a, T *b, T *c, int block_k, int m, int n, int k, const int& lda, const int& ldb,int current_c_col, int padRows, bool padMode)
 	{
 		int p;
 		const int left_cols = n - current_c_col > 4 ? 4 : n - current_c_col;
@@ -163,6 +152,8 @@ namespace DDA
 			c_40_c_70_vreg, c_41_c_71_vreg, c_42_c_72_vreg, c_43_c_73_vreg,
 			a_0p_a_3p_vreg, a_4p_a_7p_vreg,
 			b_p0_vreg, b_p1_vreg, b_p2_vreg, b_p3_vreg;
+
+		//Vtype alpha{ 1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0 };
 
 		T *b_pntr, *a_top_pntr, *a_down_pntr;
 		b_pntr = b;
@@ -184,10 +175,14 @@ namespace DDA
 			load_ps(a_0p_a_3p_vreg.v, a_top_pntr);
 			load_ps(a_4p_a_7p_vreg.v, a_down_pntr);
 
-			load_ps1(b_p0_vreg.v, b_pntr++);
-			load_ps1(b_p1_vreg.v, b_pntr++);
-			load_ps1(b_p2_vreg.v, b_pntr++);
-			load_ps1(b_p3_vreg.v, b_pntr++); /* load and duplicate */
+			load_ps1(b_p0_vreg.v, b_pntr);
+			b_pntr += ldb;
+			load_ps1(b_p1_vreg.v, b_pntr);
+			b_pntr += ldb;
+			load_ps1(b_p2_vreg.v, b_pntr);
+			b_pntr += ldb;
+			load_ps1(b_p3_vreg.v, b_pntr);
+			b_pntr += ldb;					/* load and duplicate */
 
 			//_mm_prefetch((char*)(b_p0_pntr + 1), _MM_HINT_T0);
 
@@ -219,23 +214,33 @@ namespace DDA
 			c_43_c_73_vreg.v = fmadd(a_4p_a_7p_vreg.v, b_p3_vreg.v, c_43_c_73_vreg.v);
 #endif // CPUID__FAM__
 
-			a_top_pntr += 2 * VSIZE;
-			a_down_pntr += 2 * VSIZE;
+			a_top_pntr += lda;
+			a_down_pntr += lda;
 		}
 
 		if (padMode)
 		{
 			Mask<Vtype> mask;
-			for (int i = 0; i < VSIZE - padRows; ++i)
-				mask.d[i] = ~0;
-			store(c + c3 * m, VELEMENT(0, 3, 3));
-			store_mask(c + VSIZE + c3 * m, mask.v, VELEMENT(4, 3, 7));
-			store(c + c2 * m, VELEMENT(0, 2, 3));
-			store_mask(c + VSIZE + c2 * m, mask.v, VELEMENT(4, 2, 7));
-			store(c + c1 * m, VELEMENT(0, 1, 3));
-			store_mask(c + VSIZE + c1 * m, mask.v, VELEMENT(4, 1, 7));
-			store(c, VELEMENT(0, 0, 3));
-			store_mask(c + VSIZE, mask.v, VELEMENT(4, 0, 7));
+			if (padRows > VSIZE) {
+				for (int i = 0; i < VSIZE - padRows%VSIZE; ++i)
+					mask.d[i] = ~0;
+				store_mask(c + c3 * m, mask.v, VELEMENT(0, 3, 3));
+				store_mask(c + c2 * m, mask.v, VELEMENT(0, 2, 3));
+				store_mask(c + c1 * m, mask.v, VELEMENT(0, 1, 3));
+				store_mask(c, mask.v, VELEMENT(0, 0, 3));
+			}
+			else {
+				for (int i = 0; i < VSIZE - padRows; ++i)
+					mask.d[i] = ~0;
+				store(c + c3 * m, VELEMENT(0, 3, 3));
+				store_mask(c + VSIZE + c3 * m, mask.v, VELEMENT(4, 3, 7));
+				store(c + c2 * m, VELEMENT(0, 2, 3));
+				store_mask(c + VSIZE + c2 * m, mask.v, VELEMENT(4, 2, 7));
+				store(c + c1 * m, VELEMENT(0, 1, 3));
+				store_mask(c + VSIZE + c1 * m, mask.v, VELEMENT(4, 1, 7));
+				store(c, VELEMENT(0, 0, 3));
+				store_mask(c + VSIZE, mask.v, VELEMENT(4, 0, 7));
+			}
 		}
 		else
 		{
@@ -277,15 +282,6 @@ namespace DDA
 
 			load_ps(b_p0_vreg, b_ptr);
 			b_p1_vreg = _mm256_permute_ps(b_p0_vreg, 0x01);
-
-			/*load_ps1(b_p0_vreg, b_ptr++);
-				load_ps1(b_p1_vreg, b_ptr++);
-				load_ps1(b_p2_vreg, b_ptr++);
-				load_ps1(b_p3_vreg, b_ptr++);
-				load_ps1(b_p4_vreg, b_ptr++);
-				load_ps1(b_p5_vreg, b_ptr++);
-				load_ps1(b_p6_vreg, b_ptr++);
-				load_ps1(b_p7_vreg, b_ptr++);*/
 
 #ifdef CPUID__AVX2__
 				/* 0-3 rows */

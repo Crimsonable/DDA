@@ -69,8 +69,8 @@ namespace DDA {
 				{
 					temp_exp_ptr->share(this->self);
 				}
+				transpose(temp_exp_ptr.get(), temp_res_ptr.get());
 			}
-			transpose(temp_exp_ptr.get(), temp_res_ptr.get());
 			load_ps(ret_val, &temp_res_ptr->coeffRef(idx));
 			return ret_val;
 		}
