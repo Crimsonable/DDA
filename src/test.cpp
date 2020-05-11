@@ -1,38 +1,37 @@
-/*#include <vector>
+#include <vector>
 #include "eigen/Eigen/Dense"
 #include "unitTest.h"
 #include <fstream>
 #include "Rua.h"
 #include "Fragment.h"
+#include "TriangleSolve.h"
 
 #define M 2048
 #define K 2048
-#define N 64
+#define N 2048
 #define NUM_THREADS 4
 
 using namespace std;
-using DDA::Index;
+using CSM::Index;
+using namespace CPU_OP;
 
 void rua() {
-	DDA::Matrix<float, -1, -1> a, b, c;
-	a.resize(5, 5);
-	a.setOnes();
-	b.resize(5, 5);
-	b.setOnes();
-	c.resize(5, 5);
-	c.alias() = (a+b)*(a+b);
+	Matrix<float, -1, -1> a, b, c;
+	a.resize(5, 6);
+	a.setRandom();
+	b.resize(6, 5);
+	b.setRandom();
+	auto exp = (a*(b+a.transpose())).toExpression();
+	c = exp;
+	//a.printMatrix();
 	c.printMatrix();
+	exp.clear();
 }
 
 int main() {
-	//Eigen::PartialPivLU<Eigen::Matrix<float, -1, -1>> lu;
-	//parameters_choose(128, 512, 8, 50);
-	DDA::Test<float> test(M, K, N, NUM_THREADS);
-	//auto f = &DDA::Test<float>::TestForMatExpression;
-	//auto f = &DDA::Test<float>::TestForMatTranspose;
-	auto f = &DDA::Test<float>::TestForMatDotPerforemence;
-	test.Loop(50, f);
-	//rua();
+	/*CSM::Test<float> test(M, K, N, NUM_THREADS);
+	test.Bench(50);*/
+	rua();
 	system("pause");
     return 1;
-}*/
+}

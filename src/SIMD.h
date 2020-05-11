@@ -1,9 +1,9 @@
 #pragma once
 #include "forwardDecleration.h"
 
-namespace DDA {
+namespace CSM {
 	namespace SSE_OP {
-		using DDA::internal::traits;
+		using CSM::internal::traits;
 		template<typename Vtype, typename std::enable_if<
 			std::is_same_v<Vtype, __m128> || std::is_same_v<Vtype, __m128d> || std::is_same_v<Vtype, __m256> || std::is_same_v<Vtype, __m256d>, int>::type = 0>
 			FORCE_INLINE Vtype VEC_CALL operator*(const Vtype&l, const Vtype&r) {

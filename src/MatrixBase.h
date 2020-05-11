@@ -1,25 +1,26 @@
 #pragma once
 #include "forwardDecleration.h"
 #include "Iterator.h"
+#include "OpRegister.h"
+#include "MetaTools.h"
+/*#include <cuda_runtime.h>
+#include "CublasProduct.h"*/
 
-namespace DDA {
+namespace CSM {
+	enum Device
+	{
+		CPU,GPU
+	};
 
 	template<typename Derived>
-	class MatrixBase :CommonBase
+	class MatrixBase:public CommonBase
 	{
 	private:
-		using traits = internal::traits<Derived>;
-		using scalar = typename traits::scalar;
-		bool force_lazy = false;
+		using scalar = typename internal::traits<Derived>::scalar;
 		Derived *ptr = derived();
 		inline Derived* derived() { return static_cast<Derived*>(this); }
-
 	public:
-		MatrixBase(){}
-
-		typename traits::scalar& operator[](std::size_t idx) {
-			return ptr->coeffRef(idx);
-		}
+		Device device = CPU;
 
 		template<typename otherDerived,typename std::enable_if<
 											!internal::traits<otherDerived>::isXpr,int>::type=0>
@@ -27,18 +28,8 @@ namespace DDA {
 			ptr->toStorage() = const_cast<otherDerived&>(other).toStorage();
 		}
 
-		template<typename otherDerived, typename std::enable_if<
-											internal::traits<otherDerived>::isXpr, int>::type = 0>
-		void operator=(const otherDerived& other) {
-            if constexpr(traits::size==-1){
-                ptr->resize(other.rows, other.cols);
-            }
-			const_cast<otherDerived&>(other).toXprBase().run(ptr, other, force_lazy);
-			force_lazy = false;
-		}
-
 		inline Derived& alias() {
-			force_lazy = true;
+			ptr->defaultLazyAssign = true;
 			return *ptr;
 		}
 
@@ -100,11 +91,40 @@ namespace DDA {
 				i = dis(gen);
 		}
 
+		void setEye() {
+#ifdef _DEBUG
+			if (ptr->rows != ptr->cols) {
+				std::cout << "Matrix must be square!" << std::endl;
+				abort();
+			}
+#endif // _DEBUG
+			auto dataptr = ptr->data();
+			for (int i = 0; i < ptr->rows; ++i)
+				dataptr[i + i * ptr->rows] = scalar(1);
+		}
+
+		void setTriangleDownRandom() {
+			auto dataptr = ptr->data();
+			std::random_device rd;
+			std::mt19937 gen(rd());
+			std::uniform_real_distribution<scalar> dis(0, 1);
+			for (int col_index = 0; col_index < ptr->cols; ++col_index) {
+				for (int row_index = col_index; row_index < ptr->rows; ++row_index) {
+					dataptr[col_index*ptr->rows + row_index] = dis(gen);
+				}
+			}
+		}
+
 		double sum() const {
 			double res = 0;
 			for (auto i : *ptr)
 				res += i;
 			return res;
+		}
+
+		int toGPU() {
+			device = GPU;
+			//CUDA_TOOLS::MemCopyToGpu(ptr->data(), sizeof(scalar)*ptr->size);
 		}
 	};
 }

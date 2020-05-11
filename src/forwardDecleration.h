@@ -26,24 +26,39 @@
 //#define	_ENABLE_EXTENDED_ALIGNED_STORAGE
 //#define HAS_CUDA
 
-namespace DDA {
+namespace CSM {
+	template<typename T> class DenseStorage;
+	template<typename T> class DenseStorageMap;
+
 	template<typename Derived> class MatrixBase;
-	//template<typename T, int size, int Rows, int Cols> class DenseStroage;
-	template<typename Scalar, int Rows, int Cols> class Matrix;
-	/*template<typename op, typename lhs, typename rhs> class MatrixXpr;
-	template<typename Scalar, typename other> class CwiseOpscalar;*/
-	template<typename Self> class TransOp;
+	template<typename Scalar, int Rows, int Cols, typename Imp> class Matrix;
+	template<typename MatType> class MatrixMap;
+
 	template<typename SolverType> class SolverBase;
 	template<typename MatType> class Iterator;
 	template<typename Scalar> class Block;
 
-	template<typename Lhs, typename Rhs> class MatMulOp;
-	template<typename Lhs, typename Rhs, typename Function> class CwiseBaseOp;
+	template<typename Lhs, typename Rhs, typename Implment> class MatMulOp;
+	template<typename Lhs, typename Rhs, typename Implment, typename Function> class CwiseBinaryBase;
+	template<typename Lhs, typename Rhs, typename Implment> class MatAddOp;
+	template<typename Lhs, typename Rhs, typename Implment> class MatSubOp;
+	template<typename Lhs, typename Rhs, typename Implment> class CwiseMulOp;
+	template<typename Self, typename Implment> class TransposeOp;
+	/*template<typename Lhs, typename Rhs, typename Function> class CwiseBaseOp;
 	template<typename Lhs, typename Rhs> class CwiseSumOp;
 	template<typename Lhs, typename Rhs> class CwiseSubOp;
 	template<typename Lhs, typename Rhs> class CwiseMulOp;
+	template<typename T, typename Rhs> class CwiseScalarMulOp;*/
+
+	template<typename T> class LuSolver;
+
+	template<typename Self> class Transpose;
+	template<typename Self> class SumOp;
 
 	class CommonBase{};
+	class CommonBinaryExpBase{};
+	class CommonSingleExpBase{};
+	class CommonMapBase{};
 
 	namespace internal {
 		template<typename T> struct traits;

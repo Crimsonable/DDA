@@ -1,6 +1,6 @@
 #pragma once
 #include "forwardDecleration.h"
-namespace DDA {
+namespace CSM {
 	FORCE_INLINE void* aligned_alloc(std::size_t size, std::size_t alignment) {
 		if (alignment & (alignment - 1))
 			return nullptr;

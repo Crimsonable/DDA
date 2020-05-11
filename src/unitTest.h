@@ -6,10 +6,10 @@
 #include "Rua.h"
 #include "eigen/Eigen/Dense"
 
-namespace DDA {
+namespace CSM {
     template <typename dtype>
     class Test {
-        using myClock = typename std::chrono::steady_clock::time_point;
+		using myClock = typename std::chrono::high_resolution_clock::time_point;
         using myTimeSpan = typename std::chrono::duration<double>;
         using TestFuncRetType = typename std::tuple<bool, double, double, double, double>;
         using FuncType = typename std::function<TestFuncRetType(const int, const int, const int, int)>;
@@ -19,14 +19,11 @@ namespace DDA {
 		using MatType_ptr = std::shared_ptr<MatType>;
 		using Eigen_MatType_ptr = std::shared_ptr<Eigen_MatType>;
 
-        myClock t0, t1, t2, t3;
-        myTimeSpan timeSpan0 = std::chrono::duration<double>(), timeSpan1 = std::chrono::duration<double>();
-		MatType_ptr a, b, c;
-		Eigen_MatType_ptr ea, eb, ec;
-		int M, N, K, numThread;
-
     public:
 		Test(const int M, const int K, const int N, int numThread) :M(M), N(N), K(K), numThread(numThread) {
+#ifndef _DEBUG
+			omp_set_num_threads(numThread);
+#endif // !_DEBUG
 			a = std::make_shared<MatType>();
 			a->resize(M, K);
 			a->setRandom();
@@ -52,152 +49,92 @@ namespace DDA {
 #endif // EIGEN_BENCHMARK
 		}
 
-        TestFuncRetType TestForMatDotPerforemence() {
-#ifndef _DEBUG
-			omp_set_num_threads(numThread);
-#endif
-			c->setZeros();
-            t0 = std::chrono::steady_clock::now();
-			Product(a.get(), b.get(), c.get());
-			//(*c).alias() = (*a)*(*b);
-            t1 = std::chrono::steady_clock::now();
-            timeSpan0 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
-
-#ifdef DEBUG_INFO
-            DEBUG_TOOLS::printRawMatrix(c->data(), M, N);
-#endif  // DEBUG_INFO
-
-#ifdef EIGEN_BENCHMARK
-            t2 = std::chrono::steady_clock::now();
-            *ec = *ea * *eb;
-            t3 = std::chrono::steady_clock::now();
-            timeSpan1 = std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2);
-#ifdef DEBUG_INFO
-            std::cout << *ec;
-#endif  // DEBUG_INFO
-            return {true, timeSpan0.count(), timeSpan1.count(), c->sum(), ec->sum()};
-#endif
-
-#ifndef EIGEN_BENCHMARK
-            return {false, timeSpan0.count(), 0, c->sum(), 0};
-#endif  // !EIGEN_BENCHMARK
-        }
-
-		TestFuncRetType TestForMatDotPerforemence_para(int rk) {
-#ifndef _DEBUG
-			omp_set_num_threads(numThread);
-#endif
-			c->setZeros();
-			t0 = std::chrono::steady_clock::now();
-			Product(a.get(), b.get(), c.get(), rk);
-			t1 = std::chrono::steady_clock::now();
-			timeSpan0 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
-
-#ifdef DEBUG_INFO
-			DEBUG_TOOLS::printRawMatrix(c->data(), M, N);
-#endif  // DEBUG_INFO
-
-#ifdef EIGEN_BENCHMARK
-			t2 = std::chrono::steady_clock::now();
-			*ec = *ea * *eb;
-			t3 = std::chrono::steady_clock::now();
-			timeSpan1 = std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2);
-#ifdef DEBUG_INFO
-			std::cout << *ec;
-#endif  // DEBUG_INFO
-			return { true, timeSpan0.count(), timeSpan1.count(), c->sum(), ec->sum() };
-#endif
-
-#ifndef EIGEN_BENCHMARK
-			return { false, timeSpan0.count(), 0, c->sum(), 0 };
-#endif  // !EIGEN_BENCHMARK
+		template<typename ...Argc>
+		void BenchImp(Argc&&... args) {
+			t0 = std::chrono::high_resolution_clock::now();
+			//ExpressionFunctionTestGemm(std::forward<Argc>(args)...);
+			ProductFunctionTestGemm(std::forward<Argc>(args)...);
+			t1 = std::chrono::high_resolution_clock::now();
+			timeSpan0= std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
 		}
 
-        TestFuncRetType TestForMatExpression() {
-#ifndef _DEBUG
-			omp_set_num_threads(numThread);
-#endif
-            t0 = std::chrono::steady_clock::now();
-            *c = *a * *b;
-            t1 = std::chrono::steady_clock::now();
-            timeSpan0 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
-            return {false, timeSpan0.count(), 0, c->sum(), 0};
-        }
-
-		TestFuncRetType TestForMatTranspose() {
-#ifndef _DEBUG
-			omp_set_num_threads(numThread);
-#endif
-			t0 = std::chrono::steady_clock::now();
-			*a = Transpose(*b);
-			t1 = std::chrono::steady_clock::now();
-			timeSpan0 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
-#ifdef DEBUG_INFO
-			DEBUG_TOOLS::printRawMatrix(b->data(), M, N,"before transpose: ");
-			DEBUG_TOOLS::printRawMatrix(a->data(), M, N, "after transpose: ");
-#endif // DEBUG_INFO
-#ifdef EIGEN_BENCHMARK
-			t2 = std::chrono::steady_clock::now();
-			*ea = eb->transpose();
-			t3 = std::chrono::steady_clock::now();
-			timeSpan1 = std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2);
-#endif // EIGEN_BENCHMARK
-			return { true,timeSpan0.count(),timeSpan1.count(),a->sum(),ea->sum() };
+		template<typename Matptr>
+		FORCE_INLINE void ProductFunctionTest(Matptr lhs, Matptr rhs, Matptr dst) {
+			if constexpr (std::is_base_of_v<CommonBase, typename Matptr::element_type>)
+				Product(lhs->data(), rhs->data(), dst->data(), lhs->rows, rhs->rows, lhs->rows, rhs->cols, rhs->rows);
+			else
+				*dst = *lhs**rhs;
 		}
 
-        template <typename Func, typename ...Args>
-		LoopFuncRetType Loop(int n, Func&& func, Args... args) {
-			double total_t = 0, total_et = 0, sum, sume, maxflops = 0, maxflopse = 0;
-            bool flag;
-            for (int i = 0; i < n; ++i) {
-                double t, et;
-                auto counter = (this->*func)(args...);
-                std::tie(flag, t, et, sum, sume) = counter;
+		template<typename Matptr>
+		FORCE_INLINE void ProductFunctionTestGemm(Matptr lhs, Matptr rhs, Matptr dst) {
+			if constexpr (std::is_base_of_v<CommonBase, typename Matptr::element_type>)
+				Gemm(lhs->data(), M, rhs->data(), K, dst->data(), M, M, N, K);
+			else
+				*dst = *lhs**rhs;
+		}
+
+		template<typename Matptr>
+		FORCE_INLINE void ExpressionFunctionTestGemm(Matptr lhs, Matptr rhs, Matptr dst) {
+			*dst = *lhs**rhs;
+		}
+
+		void Bench(int times) {
+			double min_count_Exp = std::numeric_limits<double>::max();
+			double min_count_Eigen = std::numeric_limits<double>::max();
+			double ExpCount = 0.0, EigenCount = 0.0;
+			for (int i = 0; i < times; ++i) {
+				BenchImp(a, b, c);
+				min_count_Exp = min_count_Exp > timeSpan0.count() ? timeSpan0.count() : min_count_Exp;
+				ExpCount += timeSpan0.count();
 #ifdef EIGEN_BENCHMARK
-                if (!check_by_sum(sum, sume)) {
-                    std::cout << "Wrong answer!" << std::endl;
-                    std::cout << "Eigen Sum: " << sume << std::endl;
-                    std::cout << "Exp Sum: " << sum << std::endl;
-					return { 0,0,0,0 };
-                }
-#endif  // EIGEN_BENCHMARK
-				if (flag) {
-					total_et += et;
-					if (2 * 1e-9 * M * N * K / et > maxflopse)
-						maxflopse = 2 * 1e-9 * M * N * K / et;
+				BenchImp(ea, eb, ec);
+				min_count_Eigen = min_count_Eigen > timeSpan0.count() ? timeSpan0.count() : min_count_Eigen;
+				EigenCount += timeSpan0.count();
+				if (i == 0) {
+					double ecsum = ec->sum();
+					double csum = c->sum();
+					if (abs(csum - ecsum) / ecsum > 1e-5) {
+						cout << "Wrong Answer!" << endl;
+						cout << "Eigen Answer: " << ecsum << endl;
+						cout << "Exp Answer: " << csum << endl;
+						cout << "Exp: " << endl;
+						c->printMatrix();
+						cout << "Eigen: " << endl;
+						cout << *ec;
+						return;
+					}
 				}
-                total_t += t;
-				if (2 * 1e-9 * M * N * K / t > maxflops)
-					maxflops = 2 * 1e-9 * M * N * K / t;
-				/*system("cls");
-				std::cout << "unitTest: " << (i + 1.0f) / n * 100 << '%' << std::endl;*/
-            }
-			double average_flops = double(2 * 1e-9 * M * N * K / (total_t / n));
-			double average_flopse = double(2 * 1e-9 * M * N * K / (total_et / n));
+#endif // EIGEN_BENCHMARK
+			}
+			double Gflops_Exp = 1e-9 * 2 * M*N*K / ExpCount * times;
+			double Gflops_Exp_Max = 1e-9 * 2 * M*N*K / min_count_Exp;
+			cout << "Exp: " << endl;
+			cout << "Average Gflops: " << Gflops_Exp << endl;
+			cout << "Max Gflops: " << Gflops_Exp_Max << endl;
+#ifdef EIGEN_BENCHMARK
+			double Gflops_Eigen_Max = 1e-9 * 2 * M*N*K / min_count_Eigen;
+			double Gflops_Eigen = 1e-9 * 2 * M*N*K / EigenCount * times;
+			cout << "Eigen: " << endl;
+			cout << "Average Gflops: " << Gflops_Eigen << endl;
+			cout << "Max Gflops: " << Gflops_Eigen_Max << endl;
+#endif // EIGEN_BENCHMARK
+		}
 
-            printTestRes("Matrix Dot Test :" + std::to_string(M) + '*' + std::to_string(K) + '*' + std::to_string(N),
-                         double(total_t / n), average_flops);
-			cout << "max_gflops: " << maxflops << endl;
-            if (flag) {
-                printTestRes("Eigen Matrix Dot :" + std::to_string(M) + '*' + std::to_string(K) + '*' + std::to_string(N),
-                             double(total_et / n), average_flopse);
-                check_by_sum(sum, sume, true);
-            }
-			return { average_flops,average_flopse,maxflops,maxflopse };
-        }
-
-        bool check_by_sum(const double& c, const double& ec, bool flag = false) {
-            if (flag) {
-                std::cout << "Exp Sum: " << c << std::endl;
-                std::cout << "Eigen Sum: " << ec << std::endl;
-            }
-            return abs(ec - c) / ec < 1e-4;
-        }
-
-        void printTestRes(const std::string& s, const double& span, double Gfloaps) {
-            std::cout << s << std::endl;
-            std::cout << "cost: " << span << std::endl;
-            std::cout << "Gfloaps: " << Gfloaps << std::endl;
-        }
+		myClock t0, t1;
+		myTimeSpan timeSpan0 = std::chrono::duration<double>();
+		MatType_ptr a, b, c;
+		Eigen_MatType_ptr ea, eb, ec;
+		int M, N, K, numThread;
     };
+
+	template<typename Func,typename ...Args>
+	void Bench(int times, Func&& f, Args&&... args) {
+		auto t0 = std::chrono::high_resolution_clock::now();
+		for (int t = 0; t < times; ++t)
+			f(std::forward<Args>(args)...);
+		auto t1 = std::chrono::high_resolution_clock::now();
+		auto span= std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+		std::cout << "Time Cost: " << span.count()/times << endl;
+	}
 }

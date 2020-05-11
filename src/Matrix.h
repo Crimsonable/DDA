@@ -2,54 +2,44 @@
 #include "forwardDecleration.h"
 #include "MatrixBase.h"
 #include "DenseStorage.h"
-#include "Block.h"
+#include "Expression.h"
+#include "OpRegister.h"
+#include "Functions.h"
+#include "Assignment.h"
+#include "MatrixMap.h"
 
-namespace DDA {
+namespace CSM {
 
 	namespace internal {
-		template<typename Scalar, int Rows, int Cols>
-		struct traits<Matrix<Scalar, Rows, Cols>> {
-			static constexpr int size = Rows * Cols;
+		template<typename Scalar, typename Implment>
+		struct traits<Matrix<Scalar, -1, -1, Implment>> {
 			using scalar = Scalar;
-			static constexpr bool isXpr = false;
-			static constexpr bool isDot = false;
-		}; 
-
-		template<typename Scalar>
-		struct traits<Matrix<Scalar, -1, -1>> {
-			static constexpr int size = -1;
-			using scalar = Scalar;
-			static constexpr bool isXpr = false;
-			static constexpr bool isDot = false;
+			using Imp = Implment;
 		};
 	}
-	
-	template<typename Scalar, int Rows, int Cols>
-	class Matrix : public MatrixBase<Matrix<Scalar, Rows, Cols>>, public DenseStorage<Scalar, internal::traits<Matrix<Scalar, Rows, Cols>>::size , Rows, Cols>{
+
+
+	template<typename Scalar, int Rows, int Cols, typename Implment=typename Functions::DefaultImp>
+	class Matrix : public MatrixBase<Matrix<Scalar, Rows, Cols, Implment>>, public DenseStorage<Scalar>,
+					public ExpBase<Matrix<Scalar,Rows,Cols, Implment>>{
 	public:
 		using scalar = Scalar;
-		typedef MatrixBase<Matrix<Scalar, Rows, Cols>> Matbase;
-		typedef DenseStorage<Scalar, internal::traits<Matrix<Scalar, Rows, Cols>>::size, Rows, Cols> Storagebase;
-		using traits = internal::traits<Matrix<Scalar, Rows, Cols>>;
+		using Self = Matrix<Scalar, Rows, Cols, Implment>;
+		typedef DenseStorage<Scalar> Storagebase;
+		using Imp = Implment;
+		static constexpr typename internal::OpRegister Op = OpRegister::None;
+		bool defaultLazyAssign = false;
 	public:
 		Matrix(){}
-		Matrix(scalar* _array):Storagebase(_array){}
-		Matrix(scalar* _array,int _size) :Storagebase(_array,_size) {}
-		Matrix(std::initializer_list<scalar> _l):Storagebase(_l){}
-		explicit Matrix(const Matrix& other):Storagebase(other.dataptr()){}
-		Matrix(Matrix&& other):Storagebase(other.dataptr()){}
 
 		inline Storagebase& toStorage() {
 			return *static_cast<Storagebase*>(this);
 		}
 
-		inline void operator=(const Matrix& other) {
-			static_cast<Matbase*>(this)->operator=(other);
-		}
-
-		template<typename otherDerived>
-		inline void operator=(const otherDerived& other) {
-			static_cast<Matbase*>(this)->operator=(other);
+		template<typename otherType>
+		inline void operator=(const otherType& other) {
+			AssignBase::template Assign<Self, otherType, Self>(this, std::forward<otherType>(*const_cast<otherType*>(&other)));
+			defaultLazyAssign = false;
 		}
 
 		inline const scalar& coeff(std::size_t idx) const {
@@ -64,8 +54,21 @@ namespace DDA {
 			return coeffRef(r + c * this->rows);
 		}
 
-		typename Block<Matrix<scalar,Rows,Cols>> topLeftBottomRight(Index&& topLeft, Index&& bottomRight) {
-			return Block<Matrix<scalar, Rows, Cols>>(*this, std::forward<Index>(topLeft), std::forward<Index>(bottomRight));
+		MatrixMap<Self> topLBottomR(const Index& topLeft, const Index& bottomRight) {
+			size_t offset = topLeft.col*this->ld + topLeft.row;
+			return MatrixMap<Self>(this->data() + offset, this->ld, bottomRight.row - topLeft.row + 1, bottomRight.col - topLeft.col + 1);
 		}
+
+		/*typename Block<Matrix<scalar,Rows,Cols>> topLeftBottomRight(Index&& topLeft, Index&& bottomRight) {
+			return Block<Matrix<scalar, Rows, Cols>>(this, std::forward<Index>(topLeft), std::forward<Index>(bottomRight));
+		}
+
+		typename Block<Matrix<scalar, Rows, Cols>> row_block(Index&& left, Index&& right) {
+			return Block<Matrix<scalar, Rows, Cols>>(this, std::forward<Index>(left), std::forward<Index>(right));
+		}
+
+		typename Block<Matrix<scalar, Rows, Cols>> col_block(Index&& top, Index&& down) {
+			return Block<Matrix<scalar, Rows, Cols>>(this, std::forward<Index>(top), std::forward<Index>(down));
+		}*/
 	};
 }

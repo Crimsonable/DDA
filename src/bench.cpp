@@ -1,4 +1,4 @@
-#define EIGEN_USE_MKL_ALL
+/*#define EIGEN_USE_MKL_ALL
 #define EIGEN_VECTORIZE_SSE4_2
 #include <iostream>
 #include <fstream>
@@ -68,4 +68,4 @@ int main(int argc, char **argv)
 	std::cout << RowVectorXd::Map(results.data(), results.size());
 	system("pause");
 	return 0;
-}
+}*/

@@ -5,7 +5,7 @@
 using std::enable_if_t;
 using std::is_arithmetic_v;
 
-namespace DDA {
+namespace CSM {
 	template<typename DerivedIterator>
 	class IteratorBase {
 	private:
